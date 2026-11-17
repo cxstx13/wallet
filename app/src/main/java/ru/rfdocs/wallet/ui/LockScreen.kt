@@ -38,7 +38,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -68,8 +70,8 @@ fun Context.findFragmentActivity(): FragmentActivity? {
 fun wipeVault(context: Context) {
     runCatching { DocRepository.wipeAll() }
     CryptoManager.wipeKey()
-    SecurePrefs.clearAll(context)
     PinVault.clear(context)
+    SecurePrefs.clearAll(context)
     LockManager.lock()
 }
 
@@ -79,6 +81,7 @@ fun LockScreen(
     onVaultReset: () -> Unit
 ) {
     val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
     val activity = remember(context) { context.findFragmentActivity() }
     var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf(false) }
@@ -107,8 +110,10 @@ fun LockScreen(
         if (pin.length == PIN_LENGTH) {
             if (PinVault.verify(context, pin)) {
                 SecurePrefs.setFailedAttempts(context, 0)
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 onUnlocked()
             } else {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 error = true
                 SecurePrefs.setFailedAttempts(context, SecurePrefs.failedAttempts(context) + 1)
                 delay(650)
@@ -132,7 +137,7 @@ fun LockScreen(
         ) {
             Box(
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(74.dp)
                     .clip(CircleShape)
                     .background(WalletTheme.extra.glassFill)
                     .border(1.dp, WalletTheme.extra.glassBorder, CircleShape),
@@ -142,10 +147,10 @@ fun LockScreen(
                     imageVector = Icons.Rounded.Lock,
                     contentDescription = null,
                     tint = Palette.Gold,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(30.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             Text(
                 text = "Введите PIN-код",
                 style = MaterialTheme.typography.headlineSmall,
@@ -159,7 +164,7 @@ fun LockScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(26.dp))
+            Spacer(modifier = Modifier.height(28.dp))
             PinDots(length = PIN_LENGTH, filled = pin.length, error = error)
             Spacer(modifier = Modifier.height(14.dp))
             Text(
@@ -168,7 +173,7 @@ fun LockScreen(
                 color = Palette.Danger,
                 modifier = Modifier.alpha(if (error) 1f else 0f)
             )
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             PinKeypad(
                 onDigit = { digit -> if (pin.length < PIN_LENGTH) pin += digit },
                 onBackspace = { pin = pin.dropLast(1) },
@@ -222,7 +227,7 @@ fun PinDots(length: Int, filled: Int, error: Boolean = false) {
             val color = when {
                 error -> Palette.Danger
                 isFilled -> Palette.Gold
-                else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.32f)
             }
             Box(
                 modifier = Modifier
@@ -242,6 +247,7 @@ fun PinKeypad(
     onBiometric: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val haptics = LocalHapticFeedback.current
     val rows = listOf(
         listOf("1", "2", "3"),
         listOf("4", "5", "6"),
@@ -262,7 +268,10 @@ fun PinKeypad(
                     KeypadButton(
                         label = digit,
                         modifier = Modifier.weight(1f),
-                        onClick = { onDigit(digit) }
+                        onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onDigit(digit)
+                        }
                     )
                 }
             }
@@ -283,7 +292,10 @@ fun PinKeypad(
                             .clickable(
                                 interactionSource = MutableInteractionSource(),
                                 indication = null
-                            ) { onBiometric() },
+                            ) {
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onBiometric()
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -298,13 +310,19 @@ fun PinKeypad(
             KeypadButton(
                 label = "0",
                 modifier = Modifier.weight(1f),
-                onClick = { onDigit("0") }
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onDigit("0")
+                }
             )
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 KeypadButton(
                     label = "",
                     modifier = Modifier.width(64.dp),
-                    onClick = onBackspace,
+                    onClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onBackspace()
+                    },
                     icon = {
                         Icon(
                             imageVector = Icons.Rounded.Backspace,
