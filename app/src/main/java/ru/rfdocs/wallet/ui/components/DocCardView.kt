@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,12 +31,14 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import ru.rfdocs.wallet.data.model.DocCard
 import ru.rfdocs.wallet.ui.theme.CardGradient
@@ -83,7 +84,12 @@ fun PlasticCard(
                 onClick?.invoke()
             }
     ) {
-        CardSurface(cardId = card.id, gradient = gradient, modifier = Modifier.matchParentSize())
+        CardSurface(
+            cardId = card.id,
+            gradient = gradient,
+            shape = shape,
+            modifier = Modifier.matchParentSize()
+        )
 
         Column(
             modifier = Modifier
@@ -181,6 +187,7 @@ private fun numberLine(card: DocCard, showNumber: Boolean): String {
 private fun CardSurface(
     cardId: String,
     gradient: CardGradient,
+    shape: Shape,
     modifier: Modifier = Modifier
 ) {
     val seed = remember(cardId) { cardId.hashCode() }
@@ -238,10 +245,11 @@ private fun CardSurface(
                 center = Offset(-size.width * 0.05f, size.height * 1.05f)
             )
         }
+
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(26.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.16f), shape)
         )
     }
 }
@@ -250,7 +258,7 @@ private fun CardSurface(
 fun TypeBadge(
     icon: ImageVector,
     accent: Color,
-    size: androidx.compose.ui.unit.Dp = 38.dp
+    size: Dp = 38.dp
 ) {
     Box(
         modifier = Modifier
@@ -273,7 +281,7 @@ fun TypeBadge(
 fun GlassIconBadge(
     icon: ImageVector,
     accent: Color,
-    size: androidx.compose.ui.unit.Dp = 40.dp
+    size: Dp = 40.dp
 ) {
     TypeBadge(icon = icon, accent = accent, size = size)
 }
