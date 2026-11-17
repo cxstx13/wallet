@@ -18,15 +18,6 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
-    signingConfigs {
-        create("ci") {
-            storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
-        }
-    }
-
     buildTypes {
         debug {
             isMinifyEnabled = false
@@ -36,7 +27,7 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("ci")
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
