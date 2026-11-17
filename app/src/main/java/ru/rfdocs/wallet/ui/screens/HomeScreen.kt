@@ -22,7 +22,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -56,8 +55,6 @@ fun HomeScreen(
     val query by viewModel.query.collectAsStateWithLifecycle()
     val filter by viewModel.filter.collectAsStateWithLifecycle()
     val allCards by viewModel.cards.collectAsStateWithLifecycle()
-    val extras = WalletTheme.extra
-    val haptics = LocalHapticFeedback.current
 
     Box(
         modifier = Modifier
@@ -71,42 +68,20 @@ fun HomeScreen(
                 .statusBarsPadding()
                 .padding(horizontal = 20.dp)
         ) {
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Мои документы",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "Офлайн · ${allCards.size} карточек",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(extras.pillFill)
-                        .border(1.dp, extras.pillStroke, CircleShape)
-                        .clickable {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onOpenSettings()
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Settings,
-                        contentDescription = "Настройки",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(21.dp)
-                    )
-                }
-            }
+            Text(
+                text = "Мои документы",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "Офлайн · ${allCards.size} карточек",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             Spacer(modifier = Modifier.height(20.dp))
             WalletSearchField(query = query, onQueryChange = viewModel::setQuery)
@@ -136,24 +111,86 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(140.dp))
+            Spacer(modifier = Modifier.height(160.dp))
         }
 
-        ExtendedFloatingActionButton(
-            onClick = {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                onAddCard()
-            },
+        HomeBottomBar(
+            onAddCard = onAddCard,
+            onOpenSettings = onOpenSettings,
             modifier = Modifier
-                .align(Alignment.BottomEnd)
+                .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(20.dp),
-            containerColor = Palette.Gold,
-            contentColor = Palette.NightBase,
-            shape = CircleShape,
-            icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
-            text = { Text("Добавить", fontWeight = FontWeight.SemiBold) }
+                .padding(horizontal = 20.dp, vertical = 16.dp)
         )
+    }
+}
+
+@Composable
+private fun HomeBottomBar(
+    onAddCard: () -> Unit,
+    onOpenSettings: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val extras = WalletTheme.extra
+    val haptics = LocalHapticFeedback.current
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(CircleShape)
+            .background(extras.glassFill)
+            .border(1.dp, extras.glassBorder, CircleShape)
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .clip(CircleShape)
+                .background(Palette.Gold)
+                .clickable {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onAddCard()
+                }
+                .padding(vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Add,
+                contentDescription = null,
+                tint = Palette.NightBase,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.size(8.dp))
+            Text(
+                text = "Добавить документ",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = Palette.NightBase
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(extras.pillFill)
+                .border(1.dp, extras.pillStroke, CircleShape)
+                .clickable {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onOpenSettings()
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Settings,
+                contentDescription = "Настройки",
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(21.dp)
+            )
+        }
     }
 }
 
