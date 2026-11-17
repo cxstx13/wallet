@@ -77,20 +77,26 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     suspend fun exportBackup(uri: Uri, password: String): String = withContext(Dispatchers.IO) {
         val result = BackupManager.exportTo(app, uri, password)
         result.fold(
-            onSuccess = { count -> "Экспортировано карточек: $count" },
-            onFailure = { error -> "Ошибка экспорта: ${error.message ?: "неизвестная"}" }
+            onSuccess = { count -> "Экспортировано документов: $count" },
+            onFailure = { error -> error.message ?: "Ошибка экспорта" }
         )
     }
 
     suspend fun importBackup(uri: Uri, password: String): String = withContext(Dispatchers.IO) {
         val result = BackupManager.importFrom(app, uri, password)
         result.fold(
-            onSuccess = { count -> "Импортировано карточек: $count" },
-            onFailure = { error -> "Ошибка импорта: ${error.message ?: "неверный пароль"}" }
+            onSuccess = { count ->
+                _query.value = ""
+                _filter.value = null
+                "Восстановлено документов: $count"
+            },
+            onFailure = { error -> error.message ?: "Не удалось восстановить бэкап" }
         )
     }
 
     fun wipeVault() {
         DocRepository.wipeAll()
+        _query.value = ""
+        _filter.value = null
     }
 }
