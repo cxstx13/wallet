@@ -1,6 +1,13 @@
 package ru.rfdocs.wallet.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,6 +47,7 @@ fun AppRoot(viewModel: WalletViewModel = viewModel()) {
                     PinVault.setPin(context, pin)
                     SecurePrefs.setOnboarded(context, true)
                     pinConfigured = true
+                    screen = Screen.Home
                     LockManager.unlock()
                 }
             )
@@ -50,61 +58,67 @@ fun AppRoot(viewModel: WalletViewModel = viewModel()) {
             LockScreen(
                 onUnlocked = { LockManager.unlock() },
                 onVaultReset = {
-                    pinConfigured = false
                     screen = Screen.Home
+                    pinConfigured = false
                 }
             )
             return@WalletTheme
         }
 
-        when (val current = screen) {
-            is Screen.Home -> {
-                HomeScreen(
+        BackHandler(enabled = screen != Screen.Home) {
+            screen = when (val current = screen) {
+                is Screen.Detail -> Screen.Home
+                is Screen.Edit -> if (current.cardId != null) Screen.Detail(current.cardId) else Screen.Home
+                is Screen.TemplatePicker -> Screen.Home
+                is Screen.Settings -> Screen.Home
+                is Screen.About -> Screen.Settings
+                else -> Screen.Home
+            }
+        }
+
+        AnimatedContent(
+            targetState = screen,
+            transitionSpec = {
+                (fadeIn(tween(220)) + slideInHorizontally(tween(240)) { offset -> offset / 14 }) togetherWith
+                    (fadeOut(tween(150)) + slideOutHorizontally(tween(200)) { offset -> -offset / 20 })
+            },
+            label = "wallet_screen"
+        ) { current ->
+            when (current) {
+                is Screen.Home -> HomeScreen(
                     viewModel = viewModel,
                     onOpenCard = { cardId -> screen = Screen.Detail(cardId) },
                     onAddCard = { screen = Screen.TemplatePicker },
                     onOpenSettings = { screen = Screen.Settings }
                 )
-            }
 
-            is Screen.TemplatePicker -> {
-                BackHandler { screen = Screen.Home }
-                TemplatePickerScreen(
+                is Screen.TemplatePicker -> TemplatePickerScreen(
                     onPick = { typeKey -> screen = Screen.Edit(null, typeKey) },
                     onBack = { screen = Screen.Home }
                 )
-            }
 
-            is Screen.Detail -> {
-                BackHandler { screen = Screen.Home }
-                CardDetailScreen(
+                is Screen.Detail -> CardDetailScreen(
                     viewModel = viewModel,
                     cardId = current.cardId,
                     onBack = { screen = Screen.Home },
                     onEdit = { cardId -> screen = Screen.Edit(cardId, null) }
                 )
-            }
 
-            is Screen.Edit -> {
-                BackHandler {
-                    screen = if (current.cardId != null) Screen.Detail(current.cardId) else Screen.Home
-                }
-                CardEditScreen(
+                is Screen.Edit -> CardEditScreen(
                     viewModel = viewModel,
                     cardId = current.cardId,
                     typeKey = current.typeKey,
                     onBack = {
-                        screen = if (current.cardId != null) Screen.Detail(current.cardId) else Screen.Home
+                        screen = if (current.cardId != null) {
+                            Screen.Detail(current.cardId)
+                        } else {
+                            Screen.Home
+                        }
                     },
-                    onDone = { savedId ->
-                        screen = if (current.cardId != null) Screen.Detail(savedId) else Screen.Detail(savedId)
-                    }
+                    onDone = { savedId -> screen = Screen.Detail(savedId) }
                 )
-            }
 
-            is Screen.Settings -> {
-                BackHandler { screen = Screen.Home }
-                SettingsScreen(
+                is Screen.Settings -> SettingsScreen(
                     viewModel = viewModel,
                     darkTheme = isDark,
                     onToggleDarkTheme = { value ->
@@ -114,11 +128,10 @@ fun AppRoot(viewModel: WalletViewModel = viewModel()) {
                     onBack = { screen = Screen.Home },
                     onAbout = { screen = Screen.About }
                 )
-            }
 
-            is Screen.About -> {
-                BackHandler { screen = Screen.Settings }
-                AboutScreen(onBack = { screen = Screen.Settings })
+                is Screen.About -> AboutScreen(
+                    onBack = { screen = Screen.Settings }
+                )
             }
         }
     }
