@@ -51,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -72,6 +73,13 @@ import ru.rfdocs.wallet.ui.components.fieldDisplayValue
 import ru.rfdocs.wallet.ui.input.PhoneMask
 import ru.rfdocs.wallet.ui.theme.Palette
 import ru.rfdocs.wallet.ui.theme.WalletTheme
+
+private data class PillSpec(
+    val text: String,
+    val icon: ImageVector,
+    val filled: Boolean,
+    val onClick: () -> Unit
+)
 
 @Composable
 fun CardDetailScreen(
@@ -121,6 +129,73 @@ fun CardDetailScreen(
         it.kind == FieldKind.PHONE || it.label.contains("Телефон", ignoreCase = true)
     }
     val phoneDigits = card.phone.ifBlank { phoneField?.value.orEmpty() }
+
+    val pills = buildList {
+        add(
+            PillSpec(
+                text = if (showNumber) "Скрыть" else "Показать",
+                icon = if (showNumber) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                filled = false,
+                onClick = { showNumber = !showNumber }
+            )
+        )
+        add(
+            PillSpec(
+                text = "Копировать",
+                icon = Icons.Rounded.ContentCopy,
+                filled = false,
+                onClick = {
+                    if (primaryNumber.isNotBlank()) {
+                        copyText(context, primaryNumber, "Номер скопирован")
+                    }
+                }
+            )
+        )
+        add(
+            PillSpec(
+                text = "Поделиться",
+                icon = Icons.Rounded.Share,
+                filled = false,
+                onClick = { showShare = true }
+            )
+        )
+        add(
+            PillSpec(
+                text = "QR",
+                icon = Icons.Rounded.QrCode2,
+                filled = false,
+                onClick = { showQr = true }
+            )
+        )
+        add(
+            PillSpec(
+                text = "Фото",
+                icon = Icons.Rounded.AddPhotoAlternate,
+                filled = false,
+                onClick = {
+                    pickImage.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                }
+            )
+        )
+        if (phoneDigits.isNotBlank()) {
+            add(
+                PillSpec(
+                    text = "Позвонить",
+                    icon = Icons.Rounded.Call,
+                    filled = true,
+                    onClick = {
+                        val dial = PhoneMask.forDial(phoneDigits)
+                        if (dial.isNotBlank()) {
+                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$dial"))
+                            runCatching { context.startActivity(intent) }
+                        }
+                    }
+                )
+            )
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -280,34 +355,34 @@ fun CardDetailScreen(
             Spacer(modifier = Modifier.height(150.dp))
         }
 
-        DetailBottomBar(
-            showNumber = showNumber,
-            hasPhone = phoneDigits.isNotBlank(),
-            onToggleNumber = { showNumber = !showNumber },
-            onCopy = {
-                if (primaryNumber.isNotBlank()) {
-                    copyText(context, primaryNumber, "Номер скопирован")
-                }
-            },
-            onShare = { showShare = true },
-            onQr = { showQr = true },
-            onPhoto = {
-                pickImage.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                )
-            },
-            onCall = {
-                val dial = PhoneMask.forDial(phoneDigits)
-                if (dial.isNotBlank()) {
-                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$dial"))
-                    runCatching { context.startActivity(intent) }
-                }
-            },
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp, vertical = 16.dp)
-        )
+                .fillMaxWidth()
+                .clip(CircleShape)
+                .background(WalletTheme.extra.glassFill)
+                .border(1.dp, WalletTheme.extra.glassBorder, CircleShape)
+                .padding(horizontal = 10.dp, vertical = 10.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                pills.forEach { pill ->
+                    ActionPill(
+                        text = pill.text,
+                        icon = pill.icon,
+                        filled = pill.filled,
+                        onClick = pill.onClick
+                    )
+                }
+            }
+        }
     }
 
     if (showQr) {
@@ -343,71 +418,5 @@ fun CardDetailScreen(
             },
             onDismiss = { showDelete = false }
         )
-    }
-}
-
-@Composable
-private fun DetailBottomBar(
-    showNumber: Boolean,
-    hasPhone: Boolean,
-    onToggleNumber: () -> Unit,
-    onCopy: () -> Unit,
-    onShare: () -> Unit,
-    onQr: () -> Unit,
-    onPhoto: () -> Unit,
-    onCall: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val extras = WalletTheme.extra
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(CircleShape)
-            .background(extras.glassFill)
-            .border(1.dp, extras.glassBorder, CircleShape)
-            .padding(horizontal = 10.dp, vertical = 10.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            ActionPill(
-                text = if (showNumber) "Скрыть" else "Показать",
-                icon = if (showNumber) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                onClick = onToggleNumber
-            )
-            ActionPill(
-                text = "Копировать",
-                icon = Icons.Rounded.ContentCopy,
-                onClick = onCopy
-            )
-            ActionPill(
-                text = "Поделиться",
-                icon = Icons.Rounded.Share,
-                onClick = onShare
-            )
-            ActionPill(
-                text = "QR",
-                icon = Icons.Rounded.QrCode2,
-                onClick = onQr
-            )
-            ActionPill(
-                text = "Фото",
-                icon = Icons.Rounded.AddPhotoAlternate,
-                onClick = onPhoto
-            )
-            if (hasPhone) {
-                ActionPill(
-                    text = "Позвонить",
-                    icon = Icons.Rounded.Call,
-                    filled = true,
-                    onClick = onCall
-                )
-            }
-        }
     }
 }
