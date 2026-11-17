@@ -30,84 +30,84 @@ data class CardGradient(
 object CardGradients {
 
     private val default = CardGradient(
-        start = Palette.Graphite,
-        middle = Palette.GraphiteDark,
-        end = Color(0xFF0E1013),
+        start = Color(0xFF23272F),
+        middle = Color(0xFF171A21),
+        end = Color(0xFF0D0F14),
         accent = Palette.Gold
     )
 
     private val map: Map<String, CardGradient> = mapOf(
         GradientKeys.RUBY to CardGradient(
-            start = Color(0xFF8E1B2E),
-            middle = Color(0xFF6A0F20),
-            end = Color(0xFF3B0611),
-            accent = Palette.Gold
+            start = Color(0xFF7E1728),
+            middle = Color(0xFF5B0F1D),
+            end = Color(0xFF2A060D),
+            accent = Color(0xFFF3D59B)
         ),
         GradientKeys.SAPPHIRE to CardGradient(
-            start = Color(0xFF1B4B85),
+            start = Color(0xFF1E4E86),
             middle = Color(0xFF12325C),
-            end = Color(0xFF071528),
-            accent = Color(0xFF9CC4F5)
+            end = Color(0xFF061224),
+            accent = Color(0xFFA8CAFF)
         ),
         GradientKeys.EMERALD to CardGradient(
-            start = Color(0xFF14805F),
-            middle = Color(0xFF0F5F49),
-            end = Color(0xFF052A20),
-            accent = Color(0xFF8CE8C2)
+            start = Color(0xFF14795A),
+            middle = Color(0xFF0C5843),
+            end = Color(0xFF04241B),
+            accent = Color(0xFF9BEFCD)
         ),
         GradientKeys.GRAPHITE to CardGradient(
-            start = Color(0xFF3A3F47),
-            middle = Color(0xFF2B2F36),
-            end = Color(0xFF16181C),
-            accent = Color(0xFFD3D8DF)
+            start = Color(0xFF3C434F),
+            middle = Color(0xFF272C35),
+            end = Color(0xFF12151A),
+            accent = Color(0xFFDDE3EC)
         ),
         GradientKeys.ANTHRACITE to CardGradient(
-            start = Color(0xFF2A2F36),
-            middle = Color(0xFF1C2025),
-            end = Color(0xFF0D0F12),
-            accent = Palette.Amber
+            start = Color(0xFF2A3038),
+            middle = Color(0xFF1A1E25),
+            end = Color(0xFF0A0C10),
+            accent = Color(0xFFF0B95E)
         ),
         GradientKeys.INDIGO to CardGradient(
-            start = Color(0xFF4B3AA0),
-            middle = Color(0xFF362A78),
-            end = Color(0xFF1A1450),
-            accent = Color(0xFFC3B6FF)
+            start = Color(0xFF4A3AA6),
+            middle = Color(0xFF322578),
+            end = Color(0xFF15103F),
+            accent = Color(0xFFC9BCFF)
         ),
         GradientKeys.VIOLET to CardGradient(
-            start = Color(0xFF6E4BC0),
-            middle = Color(0xFF4E3391),
-            end = Color(0xFF261752),
-            accent = Color(0xFFE0CDFF)
+            start = Color(0xFF6B48C4),
+            middle = Color(0xFF4A2F92),
+            end = Color(0xFF22134F),
+            accent = Color(0xFFE3D2FF)
         ),
         GradientKeys.TURQUOISE to CardGradient(
-            start = Color(0xFF16949F),
-            middle = Color(0xFF0E6E7A),
-            end = Color(0xFF04343C),
-            accent = Color(0xFF9BEEF2)
+            start = Color(0xFF14909C),
+            middle = Color(0xFF0B6773),
+            end = Color(0xFF03303A),
+            accent = Color(0xFFA8F0F4)
         ),
         GradientKeys.TEAL to CardGradient(
-            start = Color(0xFF1E93B8),
-            middle = Color(0xFF0F6E8C),
-            end = Color(0xFF073447),
-            accent = Color(0xFFB7EBFF)
+            start = Color(0xFF1D8FBB),
+            middle = Color(0xFF0E6285),
+            end = Color(0xFF062C40),
+            accent = Color(0xFFBEEBFF)
         ),
         GradientKeys.TERRACOTTA to CardGradient(
-            start = Color(0xFFB85B37),
-            middle = Color(0xFF8E4026),
-            end = Color(0xFF451A0C),
-            accent = Color(0xFFF7CFAE)
+            start = Color(0xFFAE5533),
+            middle = Color(0xFF813A22),
+            end = Color(0xFF3E150A),
+            accent = Color(0xFFF8D3B3)
         ),
         GradientKeys.BRONZE to CardGradient(
-            start = Color(0xFF7A5A32),
-            middle = Color(0xFF57401F),
-            end = Color(0xFF2A1D0C),
-            accent = Palette.GoldSoft
+            start = Color(0xFF6F5330),
+            middle = Color(0xFF4E3A1D),
+            end = Color(0xFF241809),
+            accent = Color(0xFFF0DDB4)
         ),
         GradientKeys.OBSIDIAN to CardGradient(
-            start = Color(0xFF2E2A34),
-            middle = Color(0xFF1E1B24),
-            end = Color(0xFF0A090D),
-            accent = Color(0xFFCFC6D8)
+            start = Color(0xFF2B2F3A),
+            middle = Color(0xFF1A1D25),
+            end = Color(0xFF08090C),
+            accent = Color(0xFFD5DAE4)
         )
     )
 
