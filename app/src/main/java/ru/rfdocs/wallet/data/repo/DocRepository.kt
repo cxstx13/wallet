@@ -43,6 +43,13 @@ object DocRepository {
         }
     }
 
+    fun refresh() {
+        synchronized(lock) {
+            val ctx = appContext ?: return
+            _cards.value = readFromDisk(ctx)
+        }
+    }
+
     private fun requireContext(): Context =
         appContext ?: throw IllegalStateException("DocRepository не инициализирован")
 
@@ -59,9 +66,13 @@ object DocRepository {
         if (!file.exists() || file.length() == 0L) return emptyList()
         return runCatching {
             val decrypted = CryptoManager.decrypt(file.readBytes())
-            json.decodeFromString(cardsSerializer, String(decrypted, Charsets.UTF_8))
+            val parsed = json.decodeFromString(cardsSerializer, String(decrypted, Charsets.UTF_8))
+            normalize(parsed)
         }.getOrDefault(emptyList())
     }
+
+    private fun normalize(cards: List<DocCard>): List<DocCard> =
+        cards.distinctBy { it.id }.sortedByDescending { it.createdAt }
 
     private fun writeToDisk(cards: List<DocCard>) {
         val ctx = requireContext()
@@ -86,31 +97,36 @@ object DocRepository {
             val current = _cards.value.toMutableList()
             val index = current.indexOfFirst { it.id == updated.id }
             if (index >= 0) current[index] = updated else current.add(0, updated)
-            _cards.value = current
-            writeToDisk(current)
+            val snapshot = current.toList()
+            _cards.value = snapshot
+            writeToDisk(snapshot)
         }
     }
 
     fun delete(cardId: String) {
         synchronized(lock) {
             val card = get(cardId)
-            val current = _cards.value.filterNot { it.id == cardId }
-            _cards.value = current
-            writeToDisk(current)
-            card?.photoIds?.forEach { PhotoStore.delete(requireContext(), it) }
+            val snapshot = _cards.value.filterNot { it.id == cardId }
+            _cards.value = snapshot
+            writeToDisk(snapshot)
+            card?.photoIds?.forEach { photoId ->
+                PhotoStore.delete(requireContext(), photoId)
+            }
         }
     }
 
     fun replaceAll(cards: List<DocCard>) {
         synchronized(lock) {
-            _cards.value = cards
-            writeToDisk(cards)
+            val snapshot = normalize(cards)
+            _cards.value = snapshot
+            writeToDisk(snapshot)
         }
     }
 
     fun exportCardsJson(): ByteArray {
         synchronized(lock) {
-            return json.encodeToString(cardsSerializer, _cards.value).toByteArray(Charsets.UTF_8)
+            val snapshot = json.encodeToString(cardsSerializer, _cards.value)
+            return snapshot.toByteArray(Charsets.UTF_8)
         }
     }
 
@@ -118,8 +134,10 @@ object DocRepository {
         val parsed = runCatching {
             json.decodeFromString(cardsSerializer, String(bytes, Charsets.UTF_8))
         }.getOrElse { return -1 }
+        if (parsed.isEmpty()) return -1
         replaceAll(parsed)
-        return parsed.size
+        refresh()
+        return _cards.value.size
     }
 
     fun wipeAll() {
@@ -128,6 +146,8 @@ object DocRepository {
             _cards.value = emptyList()
             val file = cardsFile(ctx)
             if (file.exists()) file.delete()
+            val tmp = File(vaultDir(ctx), "$CARDS_FILE.tmp")
+            if (tmp.exists()) tmp.delete()
             PhotoStore.deleteAll(ctx)
         }
     }
@@ -138,9 +158,9 @@ object PhotoStore {
     private const val PHOTO_DIR = "vault/photos"
 
     private fun dir(context: Context): File {
-        val d = File(context.filesDir, PHOTO_DIR)
-        if (!d.exists()) d.mkdirs()
-        return d
+        val directory = File(context.filesDir, PHOTO_DIR)
+        if (!directory.exists()) directory.mkdirs()
+        return directory
     }
 
     fun save(context: Context, bytes: ByteArray): String {
@@ -167,8 +187,7 @@ object PhotoStore {
     }
 
     fun deleteAll(context: Context) {
-        val d = dir(context)
-        d.listFiles()?.forEach { it.delete() }
+        dir(context).listFiles()?.forEach { it.delete() }
     }
 
     fun exportAll(context: Context): Map<String, ByteArray> {
@@ -176,7 +195,7 @@ object PhotoStore {
         dir(context).listFiles()?.forEach { file ->
             val id = file.name.removeSuffix(".enc")
             runCatching { CryptoManager.decrypt(file.readBytes()) }
-                .onSuccess { result[id] = it }
+                .onSuccess { bytes -> result[id] = bytes }
         }
         return result
     }
