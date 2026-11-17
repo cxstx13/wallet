@@ -12,8 +12,11 @@ object PinVault {
     const val DEFAULT_ITERATIONS = 120_000
     const val KEY_BITS = 256
 
-    fun isPinSet(context: Context): Boolean =
-        SecurePrefs.getPinHash(context) != null && SecurePrefs.getPinSalt(context) != null
+    fun isPinSet(context: Context): Boolean {
+        val hash = SecurePrefs.getPinHash(context)
+        val salt = SecurePrefs.getPinSalt(context)
+        return !hash.isNullOrEmpty() && !salt.isNullOrEmpty()
+    }
 
     fun setPin(context: Context, pin: String) {
         val salt = randomBytes(16)
@@ -24,8 +27,9 @@ object PinVault {
     }
 
     fun verify(context: Context, pin: String): Boolean {
-        val storedHash = SecurePrefs.getPinHash(context) ?: return false
-        val storedSalt = SecurePrefs.getPinSalt(context) ?: return false
+        val storedHash = SecurePrefs.getPinHash(context)
+        val storedSalt = SecurePrefs.getPinSalt(context)
+        if (storedHash.isNullOrEmpty() || storedSalt.isNullOrEmpty()) return false
         val salt = base64Decode(storedSalt)
         val candidate = deriveBase64(pin, salt, DEFAULT_ITERATIONS)
         return constantTimeEquals(storedHash, candidate)
