@@ -27,6 +27,7 @@ data class DocCard(
     val primaryMaskedField: DocField?
         get() = fields.firstOrNull { it.masked && it.isFilled }
             ?: fields.firstOrNull { it.isFilled && it.mono }
+            ?: fields.firstOrNull { it.isFilled && it.pattern.isNotBlank() }
 
     val maskedNumber: String
         get() = primaryMaskedField?.maskedPreview() ?: ""
@@ -37,6 +38,13 @@ data class DocCard(
     val copyableFields: List<DocField>
         get() = fields.filter { it.isFilled }
 
+    fun numberForDisplay(showFull: Boolean): String {
+        val field = primaryMaskedField ?: return subtitle
+        if (field.value.isBlank()) return subtitle
+        if (!field.masked) return formatPattern(field.value, field.pattern)
+        return if (showFull) formatPattern(field.value, field.pattern) else field.maskedPreview()
+    }
+
     fun searchHaystack(): String {
         val builder = StringBuilder()
         builder.append(title).append(' ')
@@ -45,6 +53,7 @@ data class DocCard(
         for (field in fields) {
             builder.append(field.label).append(' ')
             builder.append(field.value).append(' ')
+            builder.append(field.digits()).append(' ')
         }
         return builder.toString().lowercase()
     }
@@ -79,12 +88,31 @@ data class DocCard(
     fun withUpdated(): DocCard = copy(updatedAt = System.currentTimeMillis())
 
     companion object {
+
         val OUTPUT_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+
         private val INPUT_FORMATS: List<DateTimeFormatter> = listOf(
             DateTimeFormatter.ofPattern("dd.MM.yyyy"),
             DateTimeFormatter.ISO_LOCAL_DATE,
             DateTimeFormatter.ofPattern("dd.MM.yy")
         )
+
+        fun formatPattern(value: String, pattern: String): String {
+            if (pattern.isBlank()) return value
+            val digits = value.filter { it.isDigit() }
+            val out = StringBuilder()
+            var index = 0
+            for (symbol in pattern) {
+                if (index >= digits.length) break
+                if (symbol == '0') {
+                    out.append(digits[index])
+                    index++
+                } else {
+                    out.append(symbol)
+                }
+            }
+            return out.toString()
+        }
 
         fun parseDate(value: String): LocalDate? {
             val clean = value.trim()
