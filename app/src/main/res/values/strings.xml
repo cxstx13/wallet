@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Мои документы</string>
+
+    <string name="lock_title">Введите PIN-код</string>
+    <string name="lock_subtitle">Локальное хранилище документов</string>
+    <string name="lock_biometric">Вход по отпечатку</string>
+    <string name="lock_error">Неверный PIN-код</string>
+    <string name="lock_reset">Забыли PIN? Сбросить хранилище</string>
+
+    <string name="home_title">Мои документы</string>
+    <string name="home_search_hint">Поиск по документам</string>
+    <string name="filter_all">Все</string>
+    <string name="filter_identity">Личность</string>
+    <string name="filter_auto">Авто</string>
+    <string name="filter_medicine">Медицина</string>
+    <string name="filter_family">Семья</string>
+    <string name="filter_other">Другое</string>
+
+    <string name="action_show">Показать</string>
+    <string name="action_hide">Скрыть</string>
+    <string name="action_copy">Копировать</string>
+    <string name="action_share">Поделиться</string>
+    <string name="action_qr">QR-код</string>
+    <string name="action_call">Позвонить</string>
+    <string name="action_save">Сохранить</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="action_add">Добавить</string>
+    <string name="action_edit">Изменить</string>
+    <string name="action_back">Назад</string>
+    <string name="action_done">Готово</string>
+
+    <string name="settings_title">Настройки</string>
+    <string name="settings_about">О приложении</string>
+    <string name="settings_export">Экспорт зашифрованного бэкапа</string>
+    <string name="settings_import">Импорт из бэкапа</string>
+    <string name="settings_biometric">Вход по отпечатку</string>
+    <string name="settings_theme">Тёмная тема</string>
+
+    <string name="about_disclaimer">Приложение является личным офлайн-справочником реквизитов. Оно не является официальным документом и не заменяет бумажный или государственный цифровой документ.</string>
+    <string name="about_privacy">Все данные хранятся только на этом устройстве в зашифрованном виде. Приложение не имеет доступа к сети и не передаёт информацию третьим лицам (152-ФЗ).</string>
+
+    <string name="doc_passport_rf">Паспорт РФ</string>
+    <string name="doc_zagran">Загранпаспорт</string>
+    <string name="doc_snils">СНИЛС</string>
+    <string name="doc_inn">ИНН</string>
+    <string name="doc_driver">Водительское удостоверение</string>
+    <string name="doc_sts">СТС</string>
+    <string name="doc_pts">ПТС / ЭПТС</string>
+    <string name="doc_osago">ОСАГО</string>
+    <string name="doc_kasko">КАСКО</string>
+    <string name="doc_oms">Полис ОМС</string>
+    <string name="doc_dms">ДМС / турстраховка</string>
+    <string name="doc_birth">Свидетельство о рождении</string>
+    <string name="doc_bank">Банковские реквизиты</string>
+    <string name="doc_custom">Своя карточка</string>
+</resources>
