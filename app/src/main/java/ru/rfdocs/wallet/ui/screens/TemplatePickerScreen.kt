@@ -30,13 +30,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ru.rfdocs.wallet.data.model.DocCategory
 import ru.rfdocs.wallet.data.model.DocTemplate
 import ru.rfdocs.wallet.data.model.DocTemplates
-import ru.rfdocs.wallet.ui.components.GlassIconBadge
 import ru.rfdocs.wallet.ui.components.SectionTitle
+import ru.rfdocs.wallet.ui.components.TypeBadge
 import ru.rfdocs.wallet.ui.theme.CardGradients
 import ru.rfdocs.wallet.ui.theme.DocIcons
 import ru.rfdocs.wallet.ui.theme.WalletTheme
@@ -73,54 +76,85 @@ fun TemplatePickerScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
         }
-        Spacer(modifier = Modifier.height(10.dp))
+
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Выберите тип документа — поля и маски ввода настроятся автоматически",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
 
         DocCategory.entries.forEach { category ->
             val templates = grouped[category] ?: return@forEach
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             SectionTitle(text = category.label)
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             templates.forEach { template ->
                 TemplateRow(template = template, onClick = { onPick(template.typeKey) })
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
             }
         }
-        Spacer(modifier = Modifier.height(30.dp))
+
+        Spacer(modifier = Modifier.height(36.dp))
     }
 }
 
 @Composable
 private fun TemplateRow(template: DocTemplate, onClick: () -> Unit) {
     val gradient = CardGradients.of(template.gradientKey)
+    val extras = WalletTheme.extra
+    val haptics = LocalHapticFeedback.current
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(WalletTheme.extra.glassFill)
-            .border(1.dp, WalletTheme.extra.glassBorder, RoundedCornerShape(18.dp))
-            .clickable { onClick() }
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .clip(RoundedCornerShape(16.dp))
+            .background(extras.glassFill)
+            .border(1.dp, extras.glassBorder, RoundedCornerShape(16.dp))
+            .clickable {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick()
+            }
+            .padding(horizontal = 14.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        GlassIconBadge(
-            icon = DocIcons.of(template.iconKey),
-            accent = gradient.accent,
-            size = 40.dp
-        )
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    androidx.compose.ui.graphics.Brush.linearGradient(
+                        listOf(gradient.start, gradient.middle, gradient.end)
+                    )
+                )
+                .border(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.16f), RoundedCornerShape(14.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            TypeBadge(
+                icon = DocIcons.of(template.iconKey),
+                accent = gradient.accent,
+                size = 28.dp
+            )
+        }
+
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = template.title,
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "Полей: ${template.fields.size}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+
+        Box(modifier = Modifier.size(22.dp), contentAlignment = Alignment.Center) {
             Icon(
                 imageVector = Icons.Rounded.ChevronRight,
                 contentDescription = null,
