@@ -164,34 +164,24 @@ fun CardPhotosSection(
 
 @Composable
 fun CardQrDialog(card: DocCard, onDismiss: () -> Unit) {
-    val content = buildShareText(
-        card = card,
-        selectedFieldIds = card.fields.filter { it.isFilled }.map { it.id }.toSet()
-    )
-    QrDialog(title = card.title, content = content, onDismiss = onDismiss)
+    val ids = card.fields.filter { it.isFilled }.map { it.id }.toSet()
+    val content = buildShareText(card, ids)
+    QrDialog(card.title, content, onDismiss)
 }
 
 @Composable
 fun CardShareDialog(card: DocCard, onDismiss: () -> Unit) {
     val context = LocalContext.current
-    ShareFieldsDialog(
-        card = card,
-        onDismiss = onDismiss,
-        onShare = { text -> shareText(context, text) }
-    )
+    ShareFieldsDialog(card, onDismiss) { text -> shareText(context, text) }
 }
 
 @Composable
-fun CardDeleteDialog(
-    card: DocCard,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit
-) {
+fun CardDeleteDialog(card: DocCard, onDismiss: () -> Unit, onConfirm: () -> Unit) {
     ConfirmDialog(
-        title = "Удалить документ?",
-        message = "Карточка «${card.title}» и её фотографии будут удалены с устройства.",
-        confirmText = "Удалить",
-        onConfirm = onConfirm,
-        onDismiss = onDismiss
+        "Удалить документ?",
+        "Карточка «${card.title}» и её фотографии будут удалены с устройства.",
+        "Удалить",
+        onConfirm,
+        onDismiss
     )
 }
