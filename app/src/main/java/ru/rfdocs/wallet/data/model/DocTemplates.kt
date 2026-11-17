@@ -12,21 +12,66 @@ data class DocTemplate(
 
 object DocTemplates {
 
-    private fun f(
+    private fun text(
         label: String,
         placeholder: String = "",
-        masked: Boolean = false,
-        mono: Boolean = false,
-        inputMask: String = "",
-        multiline: Boolean = false
+        capitalizeWords: Boolean = false
     ): DocField = DocField(
         label = label,
-        value = "",
-        masked = masked,
-        mono = mono,
-        inputMask = inputMask,
-        multiline = multiline,
+        kind = FieldKind.TEXT,
+        placeholder = placeholder,
+        capitalizeWords = capitalizeWords
+    )
+
+    private fun multiline(label: String, placeholder: String = ""): DocField = DocField(
+        label = label,
+        kind = FieldKind.MULTILINE,
+        multiline = true,
         placeholder = placeholder
+    )
+
+    private fun date(label: String): DocField = DocField(
+        label = label,
+        kind = FieldKind.DATE,
+        placeholder = "дд.мм.гггг"
+    )
+
+    private fun phone(label: String): DocField = DocField(
+        label = label,
+        kind = FieldKind.PHONE,
+        placeholder = "+7 (___) ___-__-__"
+    )
+
+    private fun maskedNumber(
+        label: String,
+        pattern: String,
+        placeholder: String = ""
+    ): DocField = DocField(
+        label = label,
+        kind = FieldKind.MASKED_NUMBER,
+        pattern = pattern,
+        masked = true,
+        mono = true,
+        placeholder = placeholder
+    )
+
+    private fun gender(): DocField = DocField(
+        label = "Пол",
+        kind = FieldKind.GENDER,
+        options = listOf("Мужской", "Женский")
+    )
+
+    private fun surname(): DocField = text("Фамилия", "Иванов", capitalizeWords = true)
+
+    private fun name(): DocField = text("Имя", "Иван", capitalizeWords = true)
+
+    private fun patronymic(): DocField = text("Отчество (при наличии)", "Иванович", capitalizeWords = true)
+
+    private fun nameLatin(label: String, placeholder: String): DocField = DocField(
+        label = label,
+        kind = FieldKind.TEXT,
+        placeholder = placeholder,
+        capitalizeWords = true
     )
 
     val passport: DocTemplate = DocTemplate(
@@ -36,15 +81,23 @@ object DocTemplates {
         gradientKey = GradientKeys.RUBY,
         iconKey = IconKeys.PASSPORT,
         fields = listOf(
-            f("Фамилия и имя", "Иванов Иван Иванович"),
-            f("Пол", "М / Ж"),
-            f("Дата рождения", "01.01.1990"),
-            f("Место рождения", "г. Москва"),
-            f("Серия и номер", "0000 000000", masked = true, mono = true, inputMask = DocField.MASK_PASSPORT),
-            f("Кем выдан", "ГУ МВД России по г. Москве"),
-            f("Дата выдачи", "01.01.2020"),
-            f("Код подразделения", "000-000", mono = true, inputMask = DocField.MASK_DEPARTMENT),
-            f("Прописка", "г. Москва, ул. Примерная, д. 1, кв. 1", multiline = true)
+            surname(),
+            name(),
+            patronymic(),
+            gender(),
+            date("Дата рождения"),
+            text("Место рождения", "г. Москва", capitalizeWords = true),
+            maskedNumber("Серия и номер", "0000 000000", "0000 000000"),
+            text("Кем выдан", "ГУ МВД России по г. Москве"),
+            date("Дата выдачи"),
+            DocField(
+                label = "Код подразделения",
+                kind = FieldKind.MASKED_NUMBER,
+                pattern = "000-000",
+                mono = true,
+                placeholder = "000-000"
+            ),
+            multiline("Прописка", "г. Москва, ул. Примерная, д. 1, кв. 1")
         )
     )
 
@@ -55,12 +108,20 @@ object DocTemplates {
         gradientKey = GradientKeys.SAPPHIRE,
         iconKey = IconKeys.GLOBE,
         fields = listOf(
-            f("ФИО (рус.)", "Иванов Иван Иванович"),
-            f("ФИО (лат.)", "IVANOV IVAN"),
-            f("Серия и номер", "00 0000000", masked = true, mono = true, inputMask = DocField.MASK_ZAGRAN),
-            f("Дата выдачи", "01.01.2020"),
-            f("Действителен до", "01.01.2030"),
-            f("Орган выдачи", "МВД 77001")
+            surname(),
+            name(),
+            patronymic(),
+            nameLatin("ФИО латиницей", "IVANOV IVAN"),
+            maskedNumber("Серия и номер", "00 0000000", "00 0000000"),
+            date("Дата выдачи"),
+            date("Действителен до"),
+            DocField(
+                label = "Орган выдачи",
+                kind = FieldKind.MASKED_NUMBER,
+                pattern = "000000",
+                mono = true,
+                placeholder = "000000"
+            )
         )
     )
 
@@ -71,9 +132,11 @@ object DocTemplates {
         gradientKey = GradientKeys.EMERALD,
         iconKey = IconKeys.SNILS,
         fields = listOf(
-            f("Номер СНИЛС", "000-000-000 00", masked = true, mono = true, inputMask = DocField.MASK_SNILS),
-            f("ФИО", "Иванов Иван Иванович"),
-            f("Дата рождения", "01.01.1990")
+            surname(),
+            name(),
+            patronymic(),
+            date("Дата рождения"),
+            maskedNumber("Номер СНИЛС", "000-000-000 00", "000-000-000 00")
         )
     )
 
@@ -84,10 +147,18 @@ object DocTemplates {
         gradientKey = GradientKeys.GRAPHITE,
         iconKey = IconKeys.INN,
         fields = listOf(
-            f("ИНН", "000000000000", masked = true, mono = true, inputMask = DocField.MASK_INN),
-            f("ФИО", "Иванов Иван Иванович"),
-            f("Дата постановки на учёт", "01.01.2010"),
-            f("Код ФНС", "7700", mono = true)
+            surname(),
+            name(),
+            patronymic(),
+            maskedNumber("ИНН", "000000000000", "12 цифр"),
+            date("Дата постановки на учёт"),
+            DocField(
+                label = "Код ФНС",
+                kind = FieldKind.MASKED_NUMBER,
+                pattern = "0000",
+                mono = true,
+                placeholder = "7700"
+            )
         )
     )
 
@@ -98,14 +169,23 @@ object DocTemplates {
         gradientKey = GradientKeys.ANTHRACITE,
         iconKey = IconKeys.DRIVER,
         fields = listOf(
-            f("ФИО", "Иванов Иван Иванович"),
-            f("Дата рождения", "01.01.1990"),
-            f("Серия и номер", "0000 000000", masked = true, mono = true, inputMask = DocField.MASK_PASSPORT),
-            f("Дата выдачи", "01.01.2020"),
-            f("Действительно до", "01.01.2030"),
-            f("Кем выдан", "ГИБДД 7701"),
-            f("Категории", "B, C"),
-            f("Стаж", "с 2010 года")
+            surname(),
+            name(),
+            patronymic(),
+            date("Дата рождения"),
+            maskedNumber("Серия и номер", "00 00 000000", "00 00 000000"),
+            date("Дата выдачи"),
+            date("Действительно до"),
+            text("Кем выдан", "ГИБДД 7701"),
+            DocField(
+                label = "Категории",
+                kind = FieldKind.CHIPS,
+                options = listOf(
+                    "A", "A1", "B", "B1", "C", "C1", "D", "D1",
+                    "BE", "CE", "DE", "M"
+                )
+            ),
+            text("Стаж", "с 2010 года")
         )
     )
 
@@ -116,13 +196,26 @@ object DocTemplates {
         gradientKey = GradientKeys.ANTHRACITE,
         iconKey = IconKeys.CAR,
         fields = listOf(
-            f("Госномер", "А000АА000", mono = true),
-            f("VIN", "X0000000000000000", masked = true, mono = true),
-            f("Марка и модель", "Lada Vesta"),
-            f("Год выпуска", "2020"),
-            f("Серия и номер", "00 00 000000", mono = true),
-            f("Дата выдачи", "01.01.2020"),
-            f("Собственник", "Иванов Иван Иванович")
+            DocField(
+                label = "Госномер",
+                kind = FieldKind.TEXT,
+                mono = true,
+                placeholder = "А000АА000",
+                capitalizeWords = true
+            ),
+            DocField(
+                label = "VIN",
+                kind = FieldKind.MASKED_NUMBER,
+                pattern = "00000000000000000",
+                masked = true,
+                mono = true,
+                placeholder = "17 символов"
+            ),
+            text("Марка и модель", "Lada Vesta"),
+            maskedNumber("Серия и номер", "00 00 000000", "00 00 000000"),
+            text("Год выпуска", "2020"),
+            date("Дата выдачи"),
+            text("Собственник", "Иванов Иван Иванович", capitalizeWords = true)
         )
     )
 
@@ -133,45 +226,64 @@ object DocTemplates {
         gradientKey = GradientKeys.ANTHRACITE,
         iconKey = IconKeys.VIN,
         fields = listOf(
-            f("Номер ПТС / ЭПТС", "00 00 000000", mono = true),
-            f("VIN", "X0000000000000000", masked = true, mono = true),
-            f("Марка и модель", "Lada Vesta"),
-            f("Двигатель", "0000000"),
-            f("Кузов / шасси", "0000000"),
-            f("Мощность, л.с.", "106"),
-            f("Дата выдачи", "01.01.2020"),
-            f("Собственник", "Иванов Иван Иванович")
+            maskedNumber("Номер ПТС / ЭПТС", "00 00 000000", "00 00 000000"),
+            DocField(
+                label = "VIN",
+                kind = FieldKind.MASKED_NUMBER,
+                pattern = "00000000000000000",
+                masked = true,
+                mono = true,
+                placeholder = "17 символов"
+            ),
+            text("Марка и модель", "Lada Vesta"),
+            DocField(
+                label = "Двигатель",
+                kind = FieldKind.MASKED_NUMBER,
+                pattern = "0000000",
+                mono = true,
+                placeholder = "0000000"
+            ),
+            DocField(
+                label = "Кузов / шасси",
+                kind = FieldKind.MASKED_NUMBER,
+                pattern = "0000000",
+                mono = true,
+                placeholder = "0000000"
+            ),
+            text("Мощность, л.с.", "106"),
+            date("Дата выдачи"),
+            text("Собственник", "Иванов Иван Иванович", capitalizeWords = true)
         )
     )
 
-    val osago: DocTemplate = DocTemplate(
+    private fun policy(typeKey: String, title: String, gradient: String, icon: String): DocTemplate =
+        DocTemplate(
+            typeKey = typeKey,
+            title = title,
+            category = DocCategory.AUTO,
+            gradientKey = gradient,
+            iconKey = icon,
+            fields = listOf(
+                text("Страховая компания", "Название страховой"),
+                maskedNumber("Серия и номер", "000 0000000", "000 0000000"),
+                date("Действует с"),
+                date("Действует по"),
+                phone("Телефон страховой")
+            )
+        )
+
+    val osago: DocTemplate = policy(
         typeKey = "OSAGO",
         title = "ОСАГО",
-        category = DocCategory.AUTO,
-        gradientKey = GradientKeys.INDIGO,
-        iconKey = IconKeys.SHIELD,
-        fields = listOf(
-            f("Страховая компания", "Страховая компания"),
-            f("Серия и номер", "000 0000000", masked = true, mono = true, inputMask = DocField.MASK_POLICY),
-            f("Действует с", "01.01.2024"),
-            f("Действует по", "31.12.2024"),
-            f("Телефон страховой", "+7 (000) 000-00-00", inputMask = DocField.MASK_PHONE)
-        )
+        gradient = GradientKeys.INDIGO,
+        icon = IconKeys.SHIELD
     )
 
-    val kasko: DocTemplate = DocTemplate(
+    val kasko: DocTemplate = policy(
         typeKey = "KASKO",
         title = "КАСКО",
-        category = DocCategory.AUTO,
-        gradientKey = GradientKeys.VIOLET,
-        iconKey = IconKeys.SHIELD_PLUS,
-        fields = listOf(
-            f("Страховая компания", "Страховая компания"),
-            f("Серия и номер", "000 0000000", masked = true, mono = true, inputMask = DocField.MASK_POLICY),
-            f("Действует с", "01.01.2024"),
-            f("Действует по", "31.12.2024"),
-            f("Телефон страховой", "+7 (000) 000-00-00", inputMask = DocField.MASK_PHONE)
-        )
+        gradient = GradientKeys.VIOLET,
+        icon = IconKeys.SHIELD_PLUS
     )
 
     val oms: DocTemplate = DocTemplate(
@@ -181,10 +293,12 @@ object DocTemplates {
         gradientKey = GradientKeys.TURQUOISE,
         iconKey = IconKeys.MEDICAL,
         fields = listOf(
-            f("ЕНП (номер полиса)", "0000 0000 0000 0000", masked = true, mono = true, inputMask = DocField.MASK_OMS),
-            f("Страховая компания", "Страховая медицинская компания"),
-            f("ФИО", "Иванов Иван Иванович"),
-            f("Дата рождения", "01.01.1990")
+            surname(),
+            name(),
+            patronymic(),
+            date("Дата рождения"),
+            maskedNumber("ЕНП (номер полиса)", "0000 0000 0000 0000", "16 цифр"),
+            text("Страховая компания", "Страховая медицинская компания")
         )
     )
 
@@ -195,11 +309,11 @@ object DocTemplates {
         gradientKey = GradientKeys.TEAL,
         iconKey = IconKeys.MEDICAL_PLUS,
         fields = listOf(
-            f("Страховая компания", "Страховая компания"),
-            f("Номер полиса", "00000000000", masked = true, mono = true),
-            f("Действует с", "01.01.2024"),
-            f("Действует по", "31.12.2024"),
-            f("Телефон ассистанса", "+7 (000) 000-00-00", inputMask = DocField.MASK_PHONE)
+            text("Страховая компания", "Страховая компания"),
+            maskedNumber("Номер полиса", "00000000000", "номер полиса"),
+            date("Действует с"),
+            date("Действует по"),
+            phone("Телефон ассистанса")
         )
     )
 
@@ -210,13 +324,15 @@ object DocTemplates {
         gradientKey = GradientKeys.TERRACOTTA,
         iconKey = IconKeys.BABY,
         fields = listOf(
-            f("ФИО ребёнка", "Иванов Иван Иванович"),
-            f("Дата рождения", "01.01.2020"),
-            f("Место рождения", "г. Москва"),
-            f("Серия и номер", "00 000000", mono = true),
-            f("Дата выдачи", "01.01.2020"),
-            f("ЗАГС", "Московский отдел ЗАГС"),
-            f("Родители", "Иванов Иван Иванович, Иванова Мария Петровна", multiline = true)
+            surname(),
+            name(),
+            patronymic(),
+            date("Дата рождения"),
+            text("Место рождения", "г. Москва", capitalizeWords = true),
+            maskedNumber("Серия и номер", "00 000000", "00 000000"),
+            date("Дата выдачи"),
+            text("ЗАГС", "Московский отдел ЗАГС"),
+            multiline("Родители", "Иванов Иван Иванович, Иванова Мария Петровна")
         )
     )
 
@@ -227,13 +343,31 @@ object DocTemplates {
         gradientKey = GradientKeys.BRONZE,
         iconKey = IconKeys.BANK,
         fields = listOf(
-            f("Банк", "Наименование банка"),
-            f("БИК", "000000000", mono = true, inputMask = DocField.MASK_BIK),
-            f("Расчётный счёт", "00000000000000000000", masked = true, mono = true, inputMask = DocField.MASK_ACCOUNT),
-            f("Корр. счёт", "00000000000000000000", masked = true, mono = true, inputMask = DocField.MASK_ACCOUNT),
-            f("ИНН банка", "0000000000", mono = true),
-            f("КПП", "0000 00", mono = true, inputMask = DocField.MASK_KPP),
-            f("Получатель", "Иванов Иван Иванович")
+            text("Банк", "Наименование банка"),
+            DocField(
+                label = "БИК",
+                kind = FieldKind.MASKED_NUMBER,
+                pattern = "000000000",
+                mono = true,
+                placeholder = "9 цифр"
+            ),
+            maskedNumber("Расчётный счёт", "0000 0000 0000 0000 0000", "20 цифр"),
+            maskedNumber("Корр. счёт", "0000 0000 0000 0000 0000", "20 цифр"),
+            DocField(
+                label = "ИНН банка",
+                kind = FieldKind.MASKED_NUMBER,
+                pattern = "0000000000",
+                mono = true,
+                placeholder = "10 цифр"
+            ),
+            DocField(
+                label = "КПП",
+                kind = FieldKind.MASKED_NUMBER,
+                pattern = "0000 00",
+                mono = true,
+                placeholder = "0000 00"
+            ),
+            text("Получатель", "Иванов Иван Иванович", capitalizeWords = true)
         )
     )
 
@@ -244,9 +378,18 @@ object DocTemplates {
         gradientKey = GradientKeys.OBSIDIAN,
         iconKey = IconKeys.STAR,
         fields = listOf(
-            f("Название карточки", "Например, пропуск на работу"),
-            f("Поле 1", "Значение"),
-            f("Поле 2", "Значение")
+            DocField(
+                label = "Поле 1",
+                kind = FieldKind.TEXT,
+                placeholder = "Значение",
+                editableLabel = true
+            ),
+            DocField(
+                label = "Поле 2",
+                kind = FieldKind.TEXT,
+                placeholder = "Значение",
+                editableLabel = true
+            )
         )
     )
 
