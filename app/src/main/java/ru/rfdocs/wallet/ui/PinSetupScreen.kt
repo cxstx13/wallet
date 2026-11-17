@@ -19,6 +19,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -31,29 +33,40 @@ fun PinSetupScreen(
     onComplete: (String) -> Unit,
     onCancel: (() -> Unit)? = null
 ) {
+    val haptics = LocalHapticFeedback.current
     var firstPin by remember { mutableStateOf<String?>(null) }
     var pin by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf(false) }
+    var mismatch by remember { mutableStateOf(false) }
 
-    val currentTitle = when {
-        firstPin == null -> title
-        else -> "Повторите PIN-код"
-    }
-    val currentSubtitle = when {
-        firstPin == null -> subtitle
-        else -> "Введите тот же код ещё раз"
-    }
+    val currentTitle = if (firstPin == null) title else "Повторите PIN-код"
+    val currentSubtitle = if (firstPin == null) subtitle else "Введите тот же код ещё раз"
 
-    fun handleComplete(value: String) {
-        if (firstPin == null) {
-            firstPin = value
-            pin = ""
-        } else if (firstPin == value) {
-            onComplete(value)
-        } else {
-            error = true
-            pin = ""
-            firstPin = null
+    fun pushDigit(digit: String) {
+        if (pin.length >= PIN_LENGTH) return
+        val next = pin + digit
+        pin = next
+        if (next.length != PIN_LENGTH) return
+
+        val stored = firstPin
+        when {
+            stored == null -> {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                firstPin = next
+                pin = ""
+                mismatch = false
+            }
+
+            stored == next -> {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                onComplete(next)
+            }
+
+            else -> {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                mismatch = true
+                firstPin = null
+                pin = ""
+            }
         }
     }
 
@@ -83,25 +96,20 @@ fun PinSetupScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(26.dp))
-            PinDots(length = PIN_LENGTH, filled = pin.length, error = error)
+            Spacer(modifier = Modifier.height(28.dp))
+            PinDots(length = PIN_LENGTH, filled = pin.length, error = mismatch)
             Spacer(modifier = Modifier.height(14.dp))
             Text(
-                text = if (error) "PIN-коды не совпали, попробуйте снова" else " ",
+                text = if (mismatch) "PIN-коды не совпали, попробуйте снова" else " ",
                 style = MaterialTheme.typography.labelLarge,
                 color = Palette.Danger,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             PinKeypad(
                 onDigit = { digit ->
-                    if (pin.length < PIN_LENGTH) {
-                        pin += digit
-                        if (pin.length == PIN_LENGTH) {
-                            handleComplete(pin)
-                        }
-                        if (pin.length == PIN_LENGTH) error = error && false
-                    }
+                    if (mismatch) mismatch = false
+                    pushDigit(digit)
                 },
                 onBackspace = { pin = pin.dropLast(1) },
                 onBiometric = null,
