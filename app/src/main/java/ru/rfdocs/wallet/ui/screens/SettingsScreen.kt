@@ -1,7 +1,7 @@
 package ru.rfdocs.wallet.ui.screens
 
-import android.content.Intent
 import android.net.Uri
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -40,18 +40,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import ru.rfdocs.wallet.security.BackupManager
 import ru.rfdocs.wallet.security.BiometricHelper
-import ru.rfdocs.wallet.security.CryptoManager
 import ru.rfdocs.wallet.security.PinVault
 import ru.rfdocs.wallet.security.SecurePrefs
 import ru.rfdocs.wallet.ui.PinSetupScreen
 import ru.rfdocs.wallet.ui.WalletViewModel
 import ru.rfdocs.wallet.ui.components.SectionTitle
+import ru.rfdocs.wallet.ui.findFragmentActivity
 import ru.rfdocs.wallet.ui.theme.Palette
 import ru.rfdocs.wallet.ui.theme.WalletTheme
 
@@ -65,8 +67,11 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    val activity = remember(context) { context.findFragmentActivity() }
 
     var biometricEnabled by remember { mutableStateOf(SecurePrefs.isBiometricEnabled(context)) }
+    var screenshotProtected by remember { mutableStateOf(SecurePrefs.isScreenshotProtected(context)) }
     var showPinChange by remember { mutableStateOf(false) }
     var showWipe by remember { mutableStateOf(false) }
     var pendingExportUri by remember { mutableStateOf<Uri?>(null) }
@@ -91,6 +96,19 @@ fun SettingsScreen(
         if (uri != null) {
             pendingImportUri = uri
             showImportPassword = true
+        }
+    }
+
+    fun applyScreenshotProtection(enabled: Boolean) {
+        SecurePrefs.setScreenshotProtected(context, enabled)
+        screenshotProtected = enabled
+        val window = activity?.window
+        if (window != null) {
+            if (enabled) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            }
         }
     }
 
@@ -134,9 +152,9 @@ fun SettingsScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(18.dp))
         SectionTitle(text = "Безопасность")
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         SwitchRow(
             title = "Вход по отпечатку",
@@ -148,58 +166,98 @@ fun SettingsScreen(
             checked = biometricEnabled,
             enabled = biometricAvailable,
             onCheckedChange = { value ->
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 biometricEnabled = value
                 SecurePrefs.setBiometricEnabled(context, value)
             }
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        NavRow(title = "Сменить PIN-код", onClick = { showPinChange = true })
-
-        Spacer(modifier = Modifier.height(18.dp))
-        SectionTitle(text = "Оформление")
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         SwitchRow(
-            title = "Тёмная тема",
-            subtitle = "OLED-чёрный фон для экономии батареи",
-            checked = darkTheme,
+            title = "Запрет скриншотов",
+            subtitle = if (screenshotProtected) {
+                "FLAG_SECURE включён: снимки экрана и запись заблокированы"
+            } else {
+                "Снимки экрана разрешены — данные видны при захвате"
+            },
+            checked = screenshotProtected,
             enabled = true,
-            onCheckedChange = onToggleDarkTheme
+            onCheckedChange = { value ->
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                applyScreenshotProtection(value)
+            }
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        NavRow(
+            title = "Сменить PIN-код",
+            onClick = {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                showPinChange = true
+            }
         )
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(22.dp))
+        SectionTitle(text = "Оформление")
+        Spacer(modifier = Modifier.height(10.dp))
+        SwitchRow(
+            title = "Тёмная тема",
+            subtitle = "Глубокий графитовый фон",
+            checked = darkTheme,
+            enabled = true,
+            onCheckedChange = { value ->
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                onToggleDarkTheme(value)
+            }
+        )
+
+        Spacer(modifier = Modifier.height(22.dp))
         SectionTitle(text = "Резервная копия")
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         NavRow(
             title = "Экспорт зашифрованного бэкапа",
             subtitle = "Один файл, защищённый паролем",
-            onClick = { createBackup.launch(BackupManager.suggestedFileName()) }
+            onClick = {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                createBackup.launch(BackupManager.suggestedFileName())
+            }
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         NavRow(
             title = "Импорт из бэкапа",
             subtitle = "Заменит текущие документы",
-            onClick = { openBackup.launch(arrayOf("application/octet-stream", "*/*")) }
+            onClick = {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                openBackup.launch(arrayOf("application/octet-stream", "*/*"))
+            }
         )
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(22.dp))
         SectionTitle(text = "Прочее")
-        Spacer(modifier = Modifier.height(8.dp))
-        NavRow(title = "О приложении и конфиденциальность", onClick = onAbout)
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
+        NavRow(
+            title = "О приложении и конфиденциальность",
+            onClick = {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                onAbout()
+            }
+        )
+        Spacer(modifier = Modifier.height(10.dp))
         NavRow(
             title = "Удалить все документы",
             subtitle = "Безвозвратно, только на этом устройстве",
             danger = true,
-            onClick = { showWipe = true }
+            onClick = {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                showWipe = true
+            }
         )
 
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(44.dp))
     }
 
     if (showExportPassword) {
         PasswordDialog(
             title = "Пароль для бэкапа",
-            message = "Файл будет зашифрован паролем. Запомните его — восстановить данные без пароля невозможно.",
+            message = "Файл будет зашифрован паролем. Запомните его — без пароля данные не восстановить.",
             confirmText = "Экспортировать",
             onConfirm = { password ->
                 val uri = pendingExportUri
@@ -259,18 +317,23 @@ private fun SwitchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(WalletTheme.extra.glassFill)
-            .border(1.dp, WalletTheme.extra.glassBorder, RoundedCornerShape(18.dp))
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .border(1.dp, WalletTheme.extra.glassBorder, RoundedCornerShape(16.dp))
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.labelSmall,
@@ -291,11 +354,11 @@ private fun NavRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(WalletTheme.extra.glassFill)
-            .border(1.dp, WalletTheme.extra.glassBorder, RoundedCornerShape(18.dp))
+            .border(1.dp, WalletTheme.extra.glassBorder, RoundedCornerShape(16.dp))
             .clickable { onClick() }
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -306,6 +369,7 @@ private fun NavRow(
                 color = if (danger) Palette.Danger else MaterialTheme.colorScheme.onSurface
             )
             if (subtitle.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.labelSmall,
