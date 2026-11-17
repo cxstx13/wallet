@@ -3,6 +3,8 @@ package ru.rfdocs.wallet.ui
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Backspace
 import androidx.compose.material.icons.rounded.Fingerprint
@@ -40,17 +43,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
+import kotlinx.coroutines.delay
 import ru.rfdocs.wallet.data.repo.DocRepository
 import ru.rfdocs.wallet.security.BiometricHelper
 import ru.rfdocs.wallet.security.CryptoManager
 import ru.rfdocs.wallet.security.LockManager
 import ru.rfdocs.wallet.security.PinVault
 import ru.rfdocs.wallet.security.SecurePrefs
-import ru.rfdocs.wallet.ui.components.GlassPanel
 import ru.rfdocs.wallet.ui.theme.MonoStyle
 import ru.rfdocs.wallet.ui.theme.Palette
 import ru.rfdocs.wallet.ui.theme.WalletTheme
-import kotlinx.coroutines.delay
 
 const val PIN_LENGTH = 4
 
@@ -172,7 +174,9 @@ fun LockScreen(
                 onBackspace = { pin = pin.dropLast(1) },
                 onBiometric = if (biometricEnabled && biometricAvailable) {
                     { tryBiometric() }
-                } else null,
+                } else {
+                    null
+                },
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(18.dp))
@@ -196,7 +200,9 @@ fun LockScreen(
                     showReset = false
                     wipeVault(context)
                     onVaultReset()
-                }) { Text("Удалить всё", color = Palette.Danger) }
+                }) {
+                    Text(text = "Удалить всё", color = Palette.Danger)
+                }
             },
             dismissButton = {
                 TextButton(onClick = { showReset = false }) { Text("Отмена") }
@@ -268,24 +274,24 @@ fun PinKeypad(
         ) {
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 if (onBiometric != null) {
-                    GlassPanel(
-                        modifier = Modifier.size(64.dp),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
-                        contentPadding = 0.dp
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(WalletTheme.extra.glassFill)
+                            .border(1.dp, WalletTheme.extra.glassBorder, RoundedCornerShape(20.dp))
+                            .clickable(
+                                interactionSource = MutableInteractionSource(),
+                                indication = null
+                            ) { onBiometric() },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Fingerprint,
-                                contentDescription = "Вход по отпечатку",
-                                tint = Palette.Gold,
-                                modifier = Modifier
-                                    .size(30.dp)
-                                    .clickableNoRipple { onBiometric() }
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Rounded.Fingerprint,
+                            contentDescription = "Вход по отпечатку",
+                            tint = Palette.Gold,
+                            modifier = Modifier.size(30.dp)
+                        )
                     }
                 }
             }
@@ -320,14 +326,13 @@ private fun KeypadButton(
     onClick: () -> Unit,
     icon: (@Composable () -> Unit)? = null
 ) {
-    val extras = WalletTheme.extra
     Box(
         modifier = modifier
             .height(64.dp)
-            .clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp))
-            .background(extras.glassFill)
-            .border(1.dp, extras.glassBorder, androidx.compose.foundation.shape.RoundedCornerShape(20.dp))
-            .clickableNoRipple { onClick() },
+            .clip(RoundedCornerShape(20.dp))
+            .background(WalletTheme.extra.glassFill)
+            .border(1.dp, WalletTheme.extra.glassBorder, RoundedCornerShape(20.dp))
+            .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
         if (icon != null) {
@@ -341,15 +346,3 @@ private fun KeypadButton(
         }
     }
 }
-
-fun Modifier.clickableNoRipple(onClick: () -> Unit): Modifier =
-    this.then(
-        Modifier.clickableWithIndication(onClick)
-    )
-
-private fun Modifier.clickableWithIndication(onClick: () -> Unit): Modifier =
-    androidx.compose.foundation.clickable(
-        interactionSource = androidx.compose.foundation.interaction.MutableInteractionSource(),
-        indication = null,
-        onClick = onClick
-    ).let { this.then(it) }
