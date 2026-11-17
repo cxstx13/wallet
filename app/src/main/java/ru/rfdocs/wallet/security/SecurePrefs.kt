@@ -14,6 +14,7 @@ object SecurePrefs {
     private const val KEY_DARK_THEME = "dark_theme"
     private const val KEY_FAILED = "failed_attempts"
     private const val KEY_ONBOARDED = "onboarded"
+    private const val KEY_SCREENSHOT = "screenshot_protected"
 
     @Volatile
     private var cached: SharedPreferences? = null
@@ -22,12 +23,13 @@ object SecurePrefs {
         cached?.let { return it }
         synchronized(this) {
             cached?.let { return it }
-            val masterKey = MasterKey.Builder(context.applicationContext)
+            val appContext = context.applicationContext
+            val masterKey = MasterKey.Builder(appContext)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                 .setUserAuthenticationRequired(false)
                 .build()
             val created = EncryptedSharedPreferences.create(
-                context.applicationContext,
+                appContext,
                 FILE_NAME,
                 masterKey,
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
@@ -57,9 +59,20 @@ object SecurePrefs {
         prefs(context).edit().putBoolean(KEY_BIOMETRIC, enabled).apply()
     }
 
+    fun isScreenshotProtected(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_SCREENSHOT, true)
+
+    fun setScreenshotProtected(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_SCREENSHOT, enabled).apply()
+    }
+
     fun darkTheme(context: Context): Boolean? {
-        val p = prefs(context)
-        return if (p.contains(KEY_DARK_THEME)) p.getBoolean(KEY_DARK_THEME, true) else null
+        val preferences = prefs(context)
+        return if (preferences.contains(KEY_DARK_THEME)) {
+            preferences.getBoolean(KEY_DARK_THEME, true)
+        } else {
+            null
+        }
     }
 
     fun setDarkTheme(context: Context, dark: Boolean) {
