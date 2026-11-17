@@ -1,6 +1,8 @@
 package ru.rfdocs.wallet.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,8 +13,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -20,7 +24,6 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,8 +31,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,6 +56,8 @@ fun HomeScreen(
     val query by viewModel.query.collectAsStateWithLifecycle()
     val filter by viewModel.filter.collectAsStateWithLifecycle()
     val allCards by viewModel.cards.collectAsStateWithLifecycle()
+    val extras = WalletTheme.extra
+    val haptics = LocalHapticFeedback.current
 
     Box(
         modifier = Modifier
@@ -66,6 +72,7 @@ fun HomeScreen(
                 .padding(horizontal = 20.dp)
         ) {
             Spacer(modifier = Modifier.height(18.dp))
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -80,20 +87,32 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                IconButton(onClick = onOpenSettings) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(extras.pillFill)
+                        .border(1.dp, extras.pillStroke, CircleShape)
+                        .clickable {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onOpenSettings()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
                         imageVector = Icons.Rounded.Settings,
                         contentDescription = "Настройки",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(21.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             WalletSearchField(query = query, onQueryChange = viewModel::setQuery)
             Spacer(modifier = Modifier.height(12.dp))
             CategoryChips(selected = filter, onSelect = viewModel::setFilter)
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
             if (cards.isEmpty()) {
                 EmptyState(
@@ -102,7 +121,7 @@ fun HomeScreen(
                 )
             } else {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(if (cards.size > 1) (-44).dp else 10.dp)
+                    verticalArrangement = Arrangement.spacedBy(if (cards.size > 1) (-42).dp else 10.dp)
                 ) {
                     cards.forEachIndexed { index, card ->
                         PlasticCard(
@@ -117,17 +136,21 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(130.dp))
+            Spacer(modifier = Modifier.height(140.dp))
         }
 
         ExtendedFloatingActionButton(
-            onClick = onAddCard,
+            onClick = {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                onAddCard()
+            },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .navigationBarsPadding()
                 .padding(20.dp),
             containerColor = Palette.Gold,
             contentColor = Palette.NightBase,
+            shape = CircleShape,
             icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
             text = { Text("Добавить", fontWeight = FontWeight.SemiBold) }
         )
@@ -135,7 +158,13 @@ fun HomeScreen(
 }
 
 @Composable
-private fun EmptyState(hasAnyCards: Boolean, onAddCard: () -> Unit) {
+private fun EmptyState(
+    hasAnyCards: Boolean,
+    onAddCard: () -> Unit
+) {
+    val extras = WalletTheme.extra
+    val haptics = LocalHapticFeedback.current
+
     GlassPanel(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = if (hasAnyCards) "Ничего не найдено" else "Пока нет документов",
@@ -151,22 +180,24 @@ private fun EmptyState(hasAnyCards: Boolean, onAddCard: () -> Unit) {
                 "Добавьте паспорт, СНИЛС, полисы и другие документы — всё хранится только на устройстве"
             },
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Start
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         if (!hasAnyCards) {
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(WalletTheme.extra.chipSelectedFill)
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                    .clip(CircleShape)
+                    .background(extras.chipSelectedFill)
+                    .clickable {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onAddCard()
+                    }
+                    .padding(horizontal = 18.dp, vertical = 11.dp)
             ) {
                 Text(
                     text = "Добавить документ",
                     style = MaterialTheme.typography.labelLarge,
-                    color = WalletTheme.extra.chipSelectedText,
-                    modifier = Modifier.padding(2.dp)
+                    color = extras.chipSelectedText
                 )
             }
         }
