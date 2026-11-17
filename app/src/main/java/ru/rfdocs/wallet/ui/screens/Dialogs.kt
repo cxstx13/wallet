@@ -2,8 +2,6 @@ package ru.rfdocs.wallet.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,9 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -21,18 +19,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import ru.rfdocs.wallet.data.model.DocCard
 import ru.rfdocs.wallet.ui.components.QrCodeView
+import ru.rfdocs.wallet.ui.components.fieldDisplayValue
+import ru.rfdocs.wallet.ui.input.DateMask
 import ru.rfdocs.wallet.ui.theme.Palette
 import ru.rfdocs.wallet.ui.theme.WalletTheme
 
@@ -74,11 +75,16 @@ fun buildShareText(card: DocCard, selectedFieldIds: Set<String>): String {
     builder.append(card.title).append('\n')
     card.fields.forEach { field ->
         if (field.value.isNotBlank() && selectedFieldIds.contains(field.id)) {
-            builder.append(field.label).append(": ").append(field.value).append('\n')
+            builder.append(field.label).append(": ").append(fieldDisplayValue(field)).append('\n')
         }
     }
     if (card.validUntil.isNotBlank()) {
-        builder.append("Действует до: ").append(DocCard.formatDate(card.validUntil)).append('\n')
+        builder.append("Действует до: ")
+            .append(DateMask.display(DateMask.fromIso(card.validUntil)))
+            .append('\n')
+    }
+    if (card.note.isNotBlank()) {
+        builder.append("Заметка: ").append(card.note).append('\n')
     }
     return builder.toString().trim()
 }
@@ -89,8 +95,10 @@ fun ShareFieldsDialog(
     onDismiss: () -> Unit,
     onShare: (String) -> Unit
 ) {
-    val filled = remember(card.id) { card.fields.filter { it.isFilled } }
-    var selected by remember(card.id) { mutableStateOf(filled.map { it.id }.toSet()) }
+    val filled = remember(card.id, card.updatedAt) { card.fields.filter { it.isFilled } }
+    var selected by remember(card.id, card.updatedAt) {
+        mutableStateOf(filled.map { it.id }.toSet())
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -112,7 +120,7 @@ fun ShareFieldsDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 filled.forEach { field ->
                     val checked = selected.contains(field.id)
                     Row(
@@ -142,7 +150,7 @@ fun ShareFieldsDialog(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = field.value,
+                                text = fieldDisplayValue(field),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -232,14 +240,35 @@ fun PasswordDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(12.dp))
-                androidx.compose.material3.OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    singleLine = true,
-                    placeholder = { Text("Пароль") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(WalletTheme.extra.fieldFill)
+                        .padding(horizontal = 14.dp, vertical = 14.dp)
+                ) {
+                    BasicTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurface
+                        ),
+                        cursorBrush = SolidColor(Palette.Gold),
+                        modifier = Modifier.fillMaxWidth(),
+                        decorationBox = { innerTextField ->
+                            if (password.isEmpty()) {
+                                Text(
+                                    text = "Пароль",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            }
+                            innerTextField()
+                        }
+                    )
+                }
             }
         },
         confirmButton = {
