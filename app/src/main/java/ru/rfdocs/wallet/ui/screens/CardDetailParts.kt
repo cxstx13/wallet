@@ -57,6 +57,13 @@ fun dialPhone(context: Context, dial: String) {
     runCatching { context.startActivity(intent) }
 }
 
+fun shareText(context: Context, text: String) {
+    val intent = Intent(Intent.ACTION_SEND)
+    intent.type = "text/plain"
+    intent.putExtra(Intent.EXTRA_TEXT, text)
+    runCatching { context.startActivity(Intent.createChooser(intent, "Поделиться")) }
+}
+
 @Composable
 fun CardDetailBottomBar(
     pills: List<PillSpec>,
@@ -170,15 +177,7 @@ fun CardShareDialog(card: DocCard, onDismiss: () -> Unit) {
     ShareFieldsDialog(
         card = card,
         onDismiss = onDismiss,
-        onShare = { text ->
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, text)
-            }
-            runCatching {
-                context.startActivity(Intent.createChooser(intent, "Поделиться"))
-            }
-        }
+        onShare = { text -> shareText(context, text) }
     )
 }
 
