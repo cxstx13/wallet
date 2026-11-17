@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
@@ -28,9 +28,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,22 +39,32 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import ru.rfdocs.wallet.data.model.DocCard
+import ru.rfdocs.wallet.data.model.DocCategory
 import ru.rfdocs.wallet.data.model.DocField
+import ru.rfdocs.wallet.data.model.FieldKind
 import ru.rfdocs.wallet.data.model.GradientKeys
-import ru.rfdocs.wallet.data.model.applyInputMask
 import ru.rfdocs.wallet.ui.WalletViewModel
+import ru.rfdocs.wallet.ui.components.DocFieldEditor
+import ru.rfdocs.wallet.ui.components.FieldLabel
+import ru.rfdocs.wallet.ui.components.GlassPanel
 import ru.rfdocs.wallet.ui.components.SectionTitle
+import ru.rfdocs.wallet.ui.components.WalletField
+import ru.rfdocs.wallet.ui.input.DateMask
 import ru.rfdocs.wallet.ui.theme.CardGradients
 import ru.rfdocs.wallet.ui.theme.Palette
 import ru.rfdocs.wallet.ui.theme.WalletTheme
 import java.util.UUID
 
 private val EXPIRY_LABELS = listOf(
-    "Действует по", "Действителен до", "Действительно до", "Срок действия", "Действует до"
+    "Действует по",
+    "Действителен до",
+    "Действительно до"
 )
 
 @Composable
@@ -67,27 +75,23 @@ fun CardEditScreen(
     onBack: () -> Unit,
     onDone: (String) -> Unit
 ) {
-    val initial = remember(cardId, typeKey) {
+    val haptics = LocalHapticFeedback.current
+    val loaded = remember(cardId, typeKey) {
         viewModel.getCard(cardId) ?: typeKey?.let { viewModel.blankCard(it) }
     }
+    val startCard: DocCard = loaded ?: DocCard(
+        typeKey = typeKey ?: "",
+        title = "Документ",
+        category = DocCategory.OTHER
+    )
+    var draft by remember { mutableStateOf(startCard) }
 
-    if (initial == null) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                text = "Не удалось открыть карточку",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        return
-    }
+    val isCustom = draft.typeKey == "CUSTOM"
 
-    var draft by remember { mutableStateOf(initial) }
-
-    fun updateField(fieldId: String, transform: (DocField) -> DocField) {
+    fun updateField(fieldId: String, updated: DocField) {
         draft = draft.copy(
             fields = draft.fields.map { field ->
-                if (field.id == fieldId) transform(field) else field
+                if (field.id == fieldId) updated else field
             }
         )
     }
@@ -102,18 +106,20 @@ fun CardEditScreen(
                 field.copy(label = label.ifEmpty { "Поле" }, value = value)
             }
         }
-        val expiryField = cleaned.firstOrNull { field ->
-            EXPIRY_LABELS.any { label -> field.label.contains(label, ignoreCase = true) }
-        }
-        val phoneField = cleaned.firstOrNull { field ->
-            field.label.contains("Телефон", ignoreCase = true)
-        }
+        val expiry = EXPIRY_LABELS.firstNotNullOfOrNull { label ->
+            cleaned.firstOrNull { it.label.contains(label, ignoreCase = true) }
+                ?.let { DateMask.toIso(it.value) }
+        }.orEmpty()
+        val phoneValue = cleaned.firstOrNull { field ->
+            field.kind == FieldKind.PHONE || field.label.contains("Телефон", ignoreCase = true)
+        }?.value.orEmpty()
+
         val card = draft.copy(
             title = draft.title.trim().ifEmpty { "Документ" },
             subtitle = draft.category.label,
             fields = cleaned,
-            validUntil = expiryField?.let { DocCard.normalizeDate(it.value) } ?: "",
-            phone = phoneField?.value ?: ""
+            validUntil = expiry,
+            phone = phoneValue
         )
         viewModel.saveCard(card)
         onDone(card.id)
@@ -144,23 +150,58 @@ fun CardEditScreen(
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.weight(1f)
             )
-            TextButton(onClick = { save() }) {
-                Text(text = "Сохранить", color = Palette.Gold, fontWeight = FontWeight.SemiBold)
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(WalletTheme.extra.chipSelectedFill)
+                    .clickable {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        save()
+                    }
+                    .padding(horizontal = 18.dp, vertical = 10.dp)
+            ) {
+                Text(
+                    text = "Сохранить",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = WalletTheme.extra.chipSelectedText,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-        OutlinedTextField(
-            value = draft.title,
-            onValueChange = { draft = draft.copy(title = it) },
-            label = { Text("Название карточки") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
         Spacer(modifier = Modifier.height(18.dp))
+
+        if (isCustom) {
+            DocFieldEditor(
+                field = DocField(
+                    label = "Название карточки",
+                    value = draft.title,
+                    kind = FieldKind.TEXT,
+                    placeholder = "Например, пропуск на работу",
+                    capitalizeWords = true
+                ),
+                onFieldChange = { updated -> draft = draft.copy(title = updated.value) }
+            )
+        } else {
+            GlassPanel(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = draft.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = draft.category.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = WalletTheme.extra.fieldLabel
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(22.dp))
         SectionTitle(text = "Цвет карточки")
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -172,7 +213,7 @@ fun CardEditScreen(
                 val selected = draft.gradientKey == key
                 Box(
                     modifier = Modifier
-                        .size(if (selected) 42.dp else 34.dp)
+                        .size(if (selected) 44.dp else 34.dp)
                         .clip(CircleShape)
                         .background(
                             Brush.linearGradient(
@@ -181,136 +222,142 @@ fun CardEditScreen(
                         )
                         .border(
                             width = if (selected) 2.dp else 1.dp,
-                            color = if (selected) Palette.Gold else Color.White.copy(alpha = 0.35f),
+                            color = if (selected) Palette.Gold else Color.White.copy(alpha = 0.28f),
                             shape = CircleShape
                         )
-                        .clickable { draft = draft.copy(gradientKey = key) }
+                        .clickable {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            draft = draft.copy(gradientKey = key)
+                        }
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
-        SectionTitle(text = "Поля документа")
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(24.dp))
+        SectionTitle(text = "Данные документа")
+        Spacer(modifier = Modifier.height(12.dp))
 
         draft.fields.forEach { field ->
-            FieldEditor(
-                field = field,
-                editableLabel = true,
-                onLabelChange = { newLabel ->
-                    updateField(field.id) { it.copy(label = newLabel) }
-                },
-                onValueChange = { newValue ->
-                    updateField(field.id) {
-                        it.copy(value = applyInputMask(newValue, it.inputMask))
+            Column(modifier = Modifier.fillMaxWidth()) {
+                if (field.editableLabel || isCustom) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            LabelEditor(
+                                value = field.label,
+                                onValueChange = { newLabel ->
+                                    updateField(field.id, field.copy(label = newLabel))
+                                }
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                draft = draft.copy(fields = draft.fields.filterNot { it.id == field.id })
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = "Удалить поле",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
-                },
-                onRemove = {
-                    draft = draft.copy(fields = draft.fields.filterNot { it.id == field.id })
+                    Spacer(modifier = Modifier.height(6.dp))
                 }
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-        }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(WalletTheme.extra.glassFill)
-                .border(1.dp, WalletTheme.extra.glassBorder, RoundedCornerShape(16.dp))
-                .clickable {
-                    draft = draft.copy(
-                        fields = draft.fields + DocField(
-                            id = UUID.randomUUID().toString(),
-                            label = "Новое поле",
-                            placeholder = "Значение"
-                        )
+                DocFieldEditor(
+                    field = field,
+                    onFieldChange = { updated -> updateField(field.id, updated) }
+                )
+
+                if (field.kind == FieldKind.DATE &&
+                    field.value.length == DateMask.MAX_DIGITS &&
+                    !DateMask.isValid(field.value)
+                ) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Проверьте дату",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Palette.Danger
                     )
                 }
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Add,
-                contentDescription = null,
-                tint = Palette.Gold,
-                modifier = Modifier.size(18.dp)
-            )
-            Text(
-                text = "Добавить поле",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-        OutlinedTextField(
-            value = draft.note,
-            onValueChange = { draft = draft.copy(note = it) },
-            label = { Text("Заметка (необязательно)") },
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 2
+        if (isCustom) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(WalletTheme.extra.fieldFill)
+                    .border(1.dp, WalletTheme.extra.fieldStroke, RoundedCornerShape(14.dp))
+                    .clickable {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        draft = draft.copy(
+                            fields = draft.fields + DocField(
+                                id = UUID.randomUUID().toString(),
+                                label = "Новое поле",
+                                kind = FieldKind.TEXT,
+                                placeholder = "Значение",
+                                editableLabel = true
+                            )
+                        )
+                    }
+                    .padding(horizontal = 14.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Add,
+                    contentDescription = null,
+                    tint = Palette.Gold,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "Добавить поле",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Spacer(modifier = Modifier.height(22.dp))
+        }
+
+        SectionTitle(text = "Заметка")
+        Spacer(modifier = Modifier.height(10.dp))
+        DocFieldEditor(
+            field = DocField(
+                label = "Личная заметка",
+                value = draft.note,
+                kind = FieldKind.MULTILINE,
+                multiline = true,
+                placeholder = "Необязательно"
+            ),
+            onFieldChange = { updated -> draft = draft.copy(note = updated.value) }
         )
 
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(48.dp))
     }
 }
 
 @Composable
-private fun FieldEditor(
-    field: DocField,
-    editableLabel: Boolean,
-    onLabelChange: (String) -> Unit,
-    onValueChange: (String) -> Unit,
-    onRemove: () -> Unit
+private fun LabelEditor(
+    value: String,
+    onValueChange: (String) -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(WalletTheme.extra.glassFill)
-            .border(1.dp, WalletTheme.extra.glassBorder, RoundedCornerShape(18.dp))
-            .padding(12.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = field.label,
-                onValueChange = onLabelChange,
-                label = { Text("Название поля") },
-                singleLine = true,
-                modifier = Modifier.weight(1f)
-            )
-            IconButton(onClick = onRemove) {
-                Icon(
-                    imageVector = Icons.Rounded.Close,
-                    contentDescription = "Удалить поле",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
-            value = field.value,
+    Column(modifier = Modifier.fillMaxWidth()) {
+        FieldLabel(text = "Название поля")
+        Spacer(modifier = Modifier.height(4.dp))
+        BasicTextField(
+            value = value,
             onValueChange = onValueChange,
-            label = { Text(if (field.placeholder.isBlank()) "Значение" else field.placeholder) },
-            singleLine = !field.multiline,
-            minLines = if (field.multiline) 3 else 1,
-            keyboardOptions = if (field.inputMask.isNotBlank()) {
-                KeyboardOptions(keyboardType = KeyboardType.Number)
-            } else {
-                KeyboardOptions.Default
-            },
-            visualTransformation = androidx.compose.ui.text.input.VisualTransformation.None,
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                color = MaterialTheme.colorScheme.onSurface
+            ),
+            cursorBrush = SolidColor(Palette.Gold),
             modifier = Modifier.fillMaxWidth()
         )
-        if (field.inputMask.isNotBlank()) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Маска ввода: ${field.inputMask}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
     }
 }
