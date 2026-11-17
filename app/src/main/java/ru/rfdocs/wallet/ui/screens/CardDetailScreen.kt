@@ -133,7 +133,6 @@ fun CardDetailScreen(
                 .verticalScroll(rememberScrollState())
                 .statusBarsPadding()
                 .padding(horizontal = 20.dp)
-                .navigationBarsPadding()
         ) {
             Spacer(modifier = Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -184,62 +183,6 @@ fun CardDetailScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                ActionPill(
-                    text = if (showNumber) "Скрыть" else "Показать",
-                    icon = if (showNumber) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                    onClick = { showNumber = !showNumber }
-                )
-                ActionPill(
-                    text = "Копировать",
-                    icon = Icons.Rounded.ContentCopy,
-                    onClick = {
-                        if (primaryNumber.isNotBlank()) {
-                            copyText(context, primaryNumber, "Номер скопирован")
-                        }
-                    }
-                )
-                ActionPill(
-                    text = "Поделиться",
-                    icon = Icons.Rounded.Share,
-                    onClick = { showShare = true }
-                )
-                ActionPill(
-                    text = "QR-код",
-                    icon = Icons.Rounded.QrCode2,
-                    onClick = { showQr = true }
-                )
-                ActionPill(
-                    text = "Фото",
-                    icon = Icons.Rounded.AddPhotoAlternate,
-                    onClick = {
-                        pickImage.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    }
-                )
-                if (phoneDigits.isNotBlank()) {
-                    ActionPill(
-                        text = "Позвонить",
-                        icon = Icons.Rounded.Call,
-                        filled = true,
-                        onClick = {
-                            val dial = PhoneMask.forDial(phoneDigits)
-                            if (dial.isNotBlank()) {
-                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$dial"))
-                                runCatching { context.startActivity(intent) }
-                            }
-                        }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(26.dp))
             SectionTitle(text = "Данные документа")
             Spacer(modifier = Modifier.height(12.dp))
             GlassPanel(modifier = Modifier.fillMaxWidth()) {
@@ -334,8 +277,37 @@ fun CardDetailScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(150.dp))
         }
+
+        DetailBottomBar(
+            showNumber = showNumber,
+            hasPhone = phoneDigits.isNotBlank(),
+            onToggleNumber = { showNumber = !showNumber },
+            onCopy = {
+                if (primaryNumber.isNotBlank()) {
+                    copyText(context, primaryNumber, "Номер скопирован")
+                }
+            },
+            onShare = { showShare = true },
+            onQr = { showQr = true },
+            onPhoto = {
+                pickImage.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            },
+            onCall = {
+                val dial = PhoneMask.forDial(phoneDigits)
+                if (dial.isNotBlank()) {
+                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$dial"))
+                    runCatching { context.startActivity(intent) }
+                }
+            },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+        )
     }
 
     if (showQr) {
@@ -371,5 +343,71 @@ fun CardDetailScreen(
             },
             onDismiss = { showDelete = false }
         )
+    }
+}
+
+@Composable
+private fun DetailBottomBar(
+    showNumber: Boolean,
+    hasPhone: Boolean,
+    onToggleNumber: () -> Unit,
+    onCopy: () -> Unit,
+    onShare: () -> Unit,
+    onQr: () -> Unit,
+    onPhoto: () -> Unit,
+    onCall: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val extras = WalletTheme.extra
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(CircleShape)
+            .background(extras.glassFill)
+            .border(1.dp, extras.glassBorder, CircleShape)
+            .padding(horizontal = 10.dp, vertical = 10.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ActionPill(
+                text = if (showNumber) "Скрыть" else "Показать",
+                icon = if (showNumber) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                onClick = onToggleNumber
+            )
+            ActionPill(
+                text = "Копировать",
+                icon = Icons.Rounded.ContentCopy,
+                onClick = onCopy
+            )
+            ActionPill(
+                text = "Поделиться",
+                icon = Icons.Rounded.Share,
+                onClick = onShare
+            )
+            ActionPill(
+                text = "QR",
+                icon = Icons.Rounded.QrCode2,
+                onClick = onQr
+            )
+            ActionPill(
+                text = "Фото",
+                icon = Icons.Rounded.AddPhotoAlternate,
+                onClick = onPhoto
+            )
+            if (hasPhone) {
+                ActionPill(
+                    text = "Позвонить",
+                    icon = Icons.Rounded.Call,
+                    filled = true,
+                    onClick = onCall
+                )
+            }
+        }
     }
 }
