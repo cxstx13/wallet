@@ -26,13 +26,13 @@ fun formatWithMask(digits: String, mask: String): String {
     val clean = digitsOnly(digits)
     val builder = StringBuilder()
     var index = 0
-    for (ch in mask) {
+    for (symbol in mask) {
         if (index >= clean.length) break
-        if (ch == '0') {
+        if (symbol == '0') {
             builder.append(clean[index])
             index++
         } else {
-            builder.append(ch)
+            builder.append(symbol)
         }
     }
     return builder.toString()
@@ -49,46 +49,27 @@ fun maxDigitsFor(mask: String?): Int? = mask?.let { digitCount(it) }
 fun keyboardTypeFor(mask: String?): KeyboardType =
     if (mask.isNullOrBlank()) KeyboardType.Text else KeyboardType.Number
 
-private class MaskedOffsetMapping(
-    private val original: String,
-    private val mask: String,
-    private val digitTotal: Int,
-    private val transformedLength: Int
+private class PreciseOffsetMapping(
+    private val digitPositions: IntArray,
+    private val transformedLength: Int,
+    private val digitTotal: Int
 ) : OffsetMapping {
 
     override fun originalToTransformed(offset: Int): Int {
-        val clamped = offset.coerceIn(0, original.length)
-        val digits = original.take(clamped).count { it.isDigit() }
-        if (digits <= 0) return 0
+        if (digitTotal == 0) return 0
+        val digits = offset.coerceIn(0, digitTotal)
+        if (digits == 0) return 0
         if (digits >= digitTotal) return transformedLength
-
-        var placed = 0
-        var position = 0
-        for (ch in mask) {
-            if (placed >= digitTotal) break
-            if (ch == '0') {
-                placed++
-                position++
-                if (placed == digits) return position
-            } else {
-                position++
-            }
-        }
-        return position
+        return digitPositions[digits - 1] + 1
     }
 
     override fun transformedToOriginal(offset: Int): Int {
         val clamped = offset.coerceIn(0, transformedLength)
-        var digits = 0
-        var position = 0
-        for (ch in mask) {
-            if (position >= clamped) break
-            if (ch == '0') {
-                digits++
-            }
-            position++
+        var count = 0
+        for (position in digitPositions) {
+            if (position < clamped) count++ else break
         }
-        return digits.coerceAtMost(digitTotal)
+        return count.coerceIn(0, digitTotal)
     }
 }
 
@@ -99,12 +80,26 @@ class MaskedVisualTransformation(
 
     override fun filter(text: AnnotatedString): TransformedText {
         val raw = digitsOnly(text.text).take(maxDigits)
-        val formatted = formatWithMask(raw, mask)
-        val mapping = MaskedOffsetMapping(
-            original = text.text,
-            mask = mask,
-            digitTotal = raw.length,
-            transformedLength = formatted.length
+        val builder = StringBuilder()
+        val positions = IntArray(raw.length)
+        var digitIndex = 0
+
+        for (symbol in mask) {
+            if (digitIndex >= raw.length) break
+            if (symbol == '0') {
+                positions[digitIndex] = builder.length
+                builder.append(raw[digitIndex])
+                digitIndex++
+            } else {
+                builder.append(symbol)
+            }
+        }
+
+        val formatted = builder.toString()
+        val mapping = PreciseOffsetMapping(
+            digitPositions = positions,
+            transformedLength = formatted.length,
+            digitTotal = raw.length
         )
         return TransformedText(AnnotatedString(formatted), mapping)
     }
@@ -132,6 +127,18 @@ object DateMask {
     fun display(digits: String): String = formatWithMask(digits, PATTERN)
 
     fun transformation(): VisualTransformation = MaskedVisualTransformation(PATTERN, DIGITS)
+
+    fun error(digits: String): String? {
+        val clean = digitsOnly(digits).take(DIGITS)
+        if (clean.length < DIGITS) return null
+        val day = clean.substring(0, 2).toIntOrNull() ?: return "Некорректная дата"
+        val month = clean.substring(2, 4).toIntOrNull() ?: return "Некорректная дата"
+        val year = clean.substring(4, 8).toIntOrNull() ?: return "Некорректная дата"
+        if (day !in 1..31) return "День должен быть от 01 до 31"
+        if (month !in 1..12) return "Месяц должен быть от 01 до 12"
+        if (year !in 1900..2100) return "Год должен быть от 1900 до 2100"
+        return null
+    }
 }
 
 object PhoneMask {
@@ -169,4 +176,9 @@ object FieldMasks {
     }
 
     fun isNumeric(mask: String?): Boolean = !mask.isNullOrBlank()
+
+    fun error(value: String, mask: String?): String? {
+        if (mask == Masks.DATE) return DateMask.error(value)
+        return null
+    }
 }
