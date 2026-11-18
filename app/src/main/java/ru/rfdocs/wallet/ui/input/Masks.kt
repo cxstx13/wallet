@@ -49,7 +49,7 @@ fun maxDigitsFor(mask: String?): Int? = mask?.let { digitCount(it) }
 fun keyboardTypeFor(mask: String?): KeyboardType =
     if (mask.isNullOrBlank()) KeyboardType.Text else KeyboardType.Number
 
-private class MaskOffsetMapping(
+private class MaskedOffsetMapping(
     private val original: String,
     private val mask: String,
     private val digitTotal: Int,
@@ -100,7 +100,7 @@ class MaskedVisualTransformation(
     override fun filter(text: AnnotatedString): TransformedText {
         val raw = digitsOnly(text.text).take(maxDigits)
         val formatted = formatWithMask(raw, mask)
-        val mapping = MaskOffsetMapping(
+        val mapping = MaskedOffsetMapping(
             original = text.text,
             mask = mask,
             digitTotal = raw.length,
@@ -109,6 +109,8 @@ class MaskedVisualTransformation(
         return TransformedText(AnnotatedString(formatted), mapping)
     }
 }
+
+typealias MaskVisualTransformation = MaskedVisualTransformation
 
 object DateMask {
     const val PATTERN = "00.00.0000"
