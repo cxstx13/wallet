@@ -41,6 +41,7 @@ import ru.rfdocs.wallet.data.model.DocTemplate
 import ru.rfdocs.wallet.data.model.DocTemplates
 import ru.rfdocs.wallet.ui.components.SectionTitle
 import ru.rfdocs.wallet.ui.components.TypeBadge
+import ru.rfdocs.wallet.ui.components.WalletBackground
 import ru.rfdocs.wallet.ui.components.documentIcon
 import ru.rfdocs.wallet.ui.theme.DocumentGradients
 import ru.rfdocs.wallet.ui.theme.WalletTheme
@@ -52,53 +53,50 @@ fun TemplatePickerScreen(
 ) {
     val grouped = remember { DocTemplates.all.groupBy { it.category } }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .statusBarsPadding()
-            .padding(horizontal = 16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+    WalletBackground {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp)
         ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Назад"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Назад"
+                    )
+                }
+                Text(
+                    text = "Новый документ",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
-            Text(
-                text = "Новый документ",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-        }
 
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = "Выберите тип документа — поля и маски ввода настроятся автоматически",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+            Spacer(Modifier.height(8.dp))
 
-        DocCategory.entries.forEach { category ->
-            val templates = grouped[category] ?: return@forEach
-            Spacer(Modifier.height(20.dp))
-            SectionTitle(text = category.label)
-            Spacer(Modifier.height(10.dp))
-            templates.forEach { template ->
-                TemplateRow(
-                    template = template,
-                    onClick = { onPick(template.key) }
-                )
+            DocCategory.entries.forEach { category ->
+                val templates = grouped[category] ?: return@forEach
+                Spacer(Modifier.height(18.dp))
+                SectionTitle(text = category.label)
                 Spacer(Modifier.height(10.dp))
+                templates.forEach { template ->
+                    TemplateRow(
+                        template = template,
+                        onClick = { onPick(template.key) }
+                    )
+                    Spacer(Modifier.height(10.dp))
+                }
             }
-        }
 
-        Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(32.dp))
+        }
     }
 }
 
@@ -114,9 +112,9 @@ private fun TemplateRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(18.dp))
             .background(extras.glassFill)
-            .border(1.dp, extras.glassBorder, RoundedCornerShape(16.dp))
+            .border(1.dp, extras.glassBorder, RoundedCornerShape(18.dp))
             .clickable {
                 haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onClick()
@@ -127,13 +125,13 @@ private fun TemplateRow(
     ) {
         Box(
             modifier = Modifier
-                .size(42.dp)
-                .clip(RoundedCornerShape(14.dp))
+                .size(44.dp)
+                .clip(RoundedCornerShape(15.dp))
                 .background(Brush.linearGradient(gradient.colors))
                 .border(
                     width = 1.dp,
-                    color = Color.White.copy(alpha = 0.16f),
-                    shape = RoundedCornerShape(14.dp)
+                    color = Color.White.copy(alpha = 0.14f),
+                    shape = RoundedCornerShape(15.dp)
                 ),
             contentAlignment = Alignment.Center
         ) {
