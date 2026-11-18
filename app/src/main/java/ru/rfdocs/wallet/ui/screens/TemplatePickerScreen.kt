@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -28,6 +29,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -53,6 +56,7 @@ fun TemplatePickerScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
+            .statusBarsPadding()
             .padding(horizontal = 16.dp)
     ) {
         Row(
@@ -114,7 +118,7 @@ private fun TemplateRow(
             .background(extras.glassFill)
             .border(1.dp, extras.glassBorder, RoundedCornerShape(16.dp))
             .clickable {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onClick()
             }
             .padding(horizontal = 14.dp, vertical = 14.dp),
@@ -125,12 +129,10 @@ private fun TemplateRow(
             modifier = Modifier
                 .size(42.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .background(
-                    androidx.compose.ui.graphics.Brush.linearGradient(gradient.colors)
-                )
+                .background(Brush.linearGradient(gradient.colors))
                 .border(
                     width = 1.dp,
-                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.16f),
+                    color = Color.White.copy(alpha = 0.16f),
                     shape = RoundedCornerShape(14.dp)
                 ),
             contentAlignment = Alignment.Center
