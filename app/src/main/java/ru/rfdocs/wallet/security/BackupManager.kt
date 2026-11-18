@@ -8,7 +8,10 @@ import kotlinx.serialization.json.Json
 import ru.rfdocs.wallet.data.model.DocCard
 import ru.rfdocs.wallet.data.repo.DocRepository
 import ru.rfdocs.wallet.data.repo.PhotoStore
+import java.io.BufferedOutputStream
 import java.io.ByteArrayOutputStream
+import java.io.FileOutputStream
+import java.io.IOException
 import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
@@ -41,8 +44,7 @@ object BackupManager {
         return try {
             require(password.length >= 6) { "Пароль должен быть не короче 6 символов" }
 
-            val cardsJson = String(DocRepository.exportCardsJson(), Charsets.UTF_8)
-                .trim()
+            val cardsJson = String(DocRepository.exportCardsJson(), Charsets.UTF_8).trim()
             require(cardsJson.length > 2) { "Нет документов для экспорта" }
 
             val cardCount = runCatching {
@@ -71,14 +73,16 @@ object BackupManager {
             buffer.write(iv)
             buffer.write(encrypted)
             buffer.flush()
-            val bytes = buffer.toByteArray()
+
+            val encryptedBytes = buffer.toByteArray()
             buffer.close()
 
-            require(bytes.size > HEADER.length + SALT_SIZE + MIN_IV_SIZE) {
+            require(encryptedBytes.isNotEmpty()) { "Нет данных для экспорта" }
+            require(encryptedBytes.size > HEADER.length + SALT_SIZE + MIN_IV_SIZE) {
                 "Внутренняя ошибка формирования файла"
             }
 
-            writeVerified(context, uri, bytes)
+            writeBytes(context, uri, encryptedBytes)
 
             Result.success(cardCount)
         } catch (error: Throwable) {
@@ -147,21 +151,25 @@ object BackupManager {
             }
             PhotoStore.importAll(context, photos)
 
+            DocRepository.refresh()
+
             Result.success(restored)
         } catch (error: Throwable) {
             Result.failure(IllegalStateException(error.message ?: "Ошибка импорта", error))
         }
     }
 
-    private fun writeVerified(context: Context, uri: Uri, bytes: ByteArray) {
-        val stream = context.contentResolver.openOutputStream(uri, "wt")
+    private fun writeBytes(context: Context, uri: Uri, bytes: ByteArray) {
+        val rawOut = context.contentResolver.openOutputStream(uri, "wt")
             ?: context.contentResolver.openOutputStream(uri)
-            ?: error("Провайдер файлов недоступен для записи")
+            ?: throw IOException("Не удалось открыть файл для записи")
 
-        stream.use { output ->
-            output.write(bytes)
-            output.flush()
-            runCatching { (output as? java.io.FileOutputStream)?.fd?.sync() }
+        rawOut.use { raw ->
+            BufferedOutputStream(raw).use { out ->
+                out.write(bytes)
+                out.flush()
+                runCatching { (raw as? FileOutputStream)?.fd?.sync() }
+            }
         }
 
         val written = context.contentResolver.openInputStream(uri)?.use { input ->
@@ -169,7 +177,7 @@ object BackupManager {
         } ?: -1
 
         if (written != bytes.size) {
-            error("Файл записался не полностью ($written из ${bytes.size} байт)")
+            throw IOException("Файл записался не полностью ($written из ${bytes.size} байт)")
         }
     }
 
