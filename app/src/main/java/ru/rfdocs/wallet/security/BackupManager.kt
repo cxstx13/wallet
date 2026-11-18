@@ -16,6 +16,8 @@ import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
+data class BackupResult(val cards: Int, val bytes: Int)
+
 @Serializable
 data class BackupPayload(
     val cardsJson: String,
@@ -39,9 +41,9 @@ object BackupManager {
 
     private val cardsSerializer = ListSerializer(DocCard.serializer())
 
-    fun exportTo(context: Context, uri: Uri, password: String): Result<Int> {
+    fun exportTo(context: Context, uri: Uri, password: String): Result<BackupResult> {
         return try {
-            require(password.length >= 6) { "Пароль должен быть не короче 6 символов" }
+            require(password.length >= 6) { "Пароль короче 6 символов" }
 
             val cardsJson = String(DocRepository.exportCardsJson(), Charsets.UTF_8).trim()
             require(cardsJson.length > 2) { "Нет документов для экспорта" }
@@ -73,14 +75,14 @@ object BackupManager {
             buffer.write(encrypted)
             buffer.flush()
 
-            val encryptedBytes = buffer.toByteArray()
+            val bytes = buffer.toByteArray()
             buffer.close()
 
-            require(encryptedBytes.isNotEmpty()) { "Нет данных для экспорта" }
+            require(bytes.isNotEmpty()) { "Пустой файл" }
 
-            writeAll(context, uri, encryptedBytes)
+            writeAll(context, uri, bytes)
 
-            Result.success(cardCount)
+            Result.success(BackupResult(cards = cardCount, bytes = bytes.size))
         } catch (error: Throwable) {
             Result.failure(IllegalStateException(error.message ?: "Ошибка экспорта", error))
         }
@@ -92,16 +94,14 @@ object BackupManager {
                 input.readBytes()
             } ?: return Result.failure(IllegalStateException("Не удалось прочитать файл"))
 
-            require(bytes.isNotEmpty()) {
-                "Файл пустой (0 байт) — экспорт не записал данные, создайте бэкап заново"
-            }
+            require(bytes.isNotEmpty()) { "Файл пустой — создайте бэкап заново" }
 
             val header = HEADER.toByteArray(Charsets.US_ASCII)
             require(bytes.size > header.size + SALT_SIZE + 1 + MIN_IV_SIZE) {
-                "Файл повреждён или слишком короткий"
+                "Файл повреждён"
             }
             require(bytes.copyOfRange(0, header.size).contentEquals(header)) {
-                "Это не файл резервной копии приложения"
+                "Это не файл резервной копии"
             }
 
             var offset = header.size
@@ -139,16 +139,13 @@ object BackupManager {
                 payload.cardsJson.toByteArray(Charsets.UTF_8)
             )
             if (restored <= 0) {
-                return Result.failure(
-                    IllegalStateException("В бэкапе нет документов или он повреждён")
-                )
+                return Result.failure(IllegalStateException("В бэкапе нет документов"))
             }
 
-            val photos: Map<String, ByteArray> = payload.photos.mapValues { entry ->
-                PinVault.base64Decode(entry.value)
-            }
-            PhotoStore.importAll(context, photos)
-
+            PhotoStore.importAll(
+                context,
+                payload.photos.mapValues { entry -> PinVault.base64Decode(entry.value) }
+            )
             DocRepository.refresh()
 
             Result.success(restored)
@@ -158,45 +155,22 @@ object BackupManager {
     }
 
     private fun writeAll(context: Context, uri: Uri, bytes: ByteArray) {
-        var writeError: Throwable? = null
-
-        try {
-            context.contentResolver.openFileDescriptor(uri, "wt")?.use { descriptor ->
-                FileOutputStream(descriptor.fileDescriptor).use { output ->
-                    output.write(bytes)
-                    output.flush()
-                    runCatching { output.fd.sync() }
-                }
-            }
-        } catch (error: Throwable) {
-            writeError = error
-        }
-
-        val currentSize = sizeOf(context, uri)
-        if (currentSize == bytes.size) return
-
-        try {
-            context.contentResolver.openOutputStream(uri, "wt")?.use { output ->
+        context.contentResolver.openFileDescriptor(uri, "wt")?.use { descriptor ->
+            FileOutputStream(descriptor.fileDescriptor).use { output ->
                 output.write(bytes)
                 output.flush()
+                runCatching { output.fd.sync() }
             }
-        } catch (error: Throwable) {
-            writeError = error
         }
 
-        val finalSize = sizeOf(context, uri)
-        if (finalSize != bytes.size) {
-            throw IOException(
-                "Не удалось записать файл: $finalSize из ${bytes.size} байт" +
-                    (writeError?.message?.let { " ($it)" } ?: "")
-            )
-        }
-    }
-
-    private fun sizeOf(context: Context, uri: Uri): Int =
-        context.contentResolver.openInputStream(uri)?.use { input ->
+        val written = context.contentResolver.openInputStream(uri)?.use { input ->
             input.readBytes().size
         } ?: -1
+
+        if (written != bytes.size) {
+            throw IOException("Записано $written из ${bytes.size} байт")
+        }
+    }
 
     fun suggestedFileName(): String {
         val stamp = java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US)
