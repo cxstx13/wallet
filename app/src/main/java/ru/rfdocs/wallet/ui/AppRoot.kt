@@ -5,8 +5,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
@@ -15,7 +15,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ru.rfdocs.wallet.security.LockManager
 import ru.rfdocs.wallet.security.PinVault
@@ -36,7 +35,7 @@ fun AppRoot(viewModel: WalletViewModel = viewModel()) {
 
     WalletTheme(darkTheme = isDark) {
         var pinConfigured by remember { mutableStateOf(PinVault.isPinSet(context)) }
-        val locked by LockManager.isLocked.collectAsStateWithLifecycle()
+        var locked by remember { mutableStateOf(LockManager.isLocked()) }
         var screen by remember { mutableStateOf<Screen>(Screen.Home) }
 
         if (!pinConfigured) {
@@ -49,6 +48,7 @@ fun AppRoot(viewModel: WalletViewModel = viewModel()) {
                     pinConfigured = true
                     screen = Screen.Home
                     LockManager.unlock()
+                    locked = false
                 }
             )
             return@WalletTheme
@@ -56,17 +56,16 @@ fun AppRoot(viewModel: WalletViewModel = viewModel()) {
 
         if (locked) {
             LockScreen(
-                onUnlocked = { LockManager.unlock() },
+                onUnlocked = {
+                    LockManager.unlock()
+                    locked = false
+                },
                 onVaultReset = {
                     screen = Screen.Home
                     pinConfigured = false
                 }
             )
             return@WalletTheme
-        }
-
-        fun leaveEdit(cardId: String?) {
-            screen = if (cardId != null) Screen.Detail(cardId) else Screen.TemplatePicker
         }
 
         BackHandler(enabled = screen != Screen.Home) {
@@ -88,14 +87,13 @@ fun AppRoot(viewModel: WalletViewModel = viewModel()) {
         AnimatedContent(
             targetState = screen,
             transitionSpec = {
-                (fadeIn(tween(220)) + slideInHorizontally(tween(240)) { offset -> offset / 14 }) togetherWith
-                    (fadeOut(tween(150)) + slideOutHorizontally(tween(200)) { offset -> -offset / 20 })
+                (fadeIn(tween(240)) + scaleIn(tween(240), initialScale = 0.96f)) togetherWith
+                    (fadeOut(tween(160)) + scaleOut(tween(200), targetScale = 0.98f))
             },
             label = "wallet_screen"
         ) { current ->
             when (current) {
                 is Screen.Home -> HomeScreen(
-                    viewModel = viewModel,
                     onOpenCard = { cardId -> screen = Screen.Detail(cardId) },
                     onAddCard = { screen = Screen.TemplatePicker },
                     onOpenSettings = { screen = Screen.Settings }
@@ -117,14 +115,14 @@ fun AppRoot(viewModel: WalletViewModel = viewModel()) {
                     viewModel = viewModel,
                     cardId = current.cardId,
                     typeKey = current.typeKey,
-                    onBack = { leaveEdit(current.cardId) },
-                    onDone = { savedId ->
+                    onBack = {
                         screen = if (current.cardId != null) {
-                            Screen.Detail(savedId)
+                            Screen.Detail(current.cardId)
                         } else {
-                            Screen.Detail(savedId)
+                            Screen.TemplatePicker
                         }
-                    }
+                    },
+                    onDone = { savedId -> screen = Screen.Detail(savedId) }
                 )
 
                 is Screen.Settings -> SettingsScreen(
