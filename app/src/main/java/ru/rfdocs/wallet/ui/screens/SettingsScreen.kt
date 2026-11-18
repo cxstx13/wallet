@@ -6,10 +6,6 @@ import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,17 +13,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,7 +29,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -56,8 +47,6 @@ import ru.rfdocs.wallet.security.SecurePrefs
 import ru.rfdocs.wallet.ui.PinSetupScreen
 import ru.rfdocs.wallet.ui.WalletViewModel
 import ru.rfdocs.wallet.ui.components.SectionTitle
-import ru.rfdocs.wallet.ui.theme.Palette
-import ru.rfdocs.wallet.ui.theme.WalletTheme
 
 @Composable
 fun SettingsScreen(
@@ -161,7 +150,7 @@ fun SettingsScreen(
         SectionTitle(text = "Безопасность")
         Spacer(Modifier.height(10.dp))
 
-        SwitchRow(
+        SettingsSwitchRow(
             title = "Вход по отпечатку",
             subtitle = if (biometricAvailable) {
                 "Быстрый вход вместо ввода PIN-кода"
@@ -178,7 +167,7 @@ fun SettingsScreen(
         )
 
         Spacer(Modifier.height(10.dp))
-        SwitchRow(
+        SettingsSwitchRow(
             title = "Запрет скриншотов",
             subtitle = if (screenshotBlocked) {
                 "FLAG_SECURE включён: снимки экрана блокируются"
@@ -194,7 +183,7 @@ fun SettingsScreen(
         )
 
         Spacer(Modifier.height(10.dp))
-        NavRow(
+        SettingsNavRow(
             title = "Сменить PIN-код",
             onClick = {
                 haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -205,7 +194,7 @@ fun SettingsScreen(
         Spacer(Modifier.height(22.dp))
         SectionTitle(text = "Оформление")
         Spacer(Modifier.height(10.dp))
-        SwitchRow(
+        SettingsSwitchRow(
             title = "Тёмная тема",
             subtitle = "Глубокий графитовый фон",
             checked = darkTheme,
@@ -219,7 +208,7 @@ fun SettingsScreen(
         Spacer(Modifier.height(22.dp))
         SectionTitle(text = "Резервная копия")
         Spacer(Modifier.height(10.dp))
-        NavRow(
+        SettingsNavRow(
             title = "Экспорт зашифрованного бэкапа",
             subtitle = "Один файл, защищённый паролем",
             onClick = {
@@ -233,7 +222,7 @@ fun SettingsScreen(
         )
 
         Spacer(Modifier.height(10.dp))
-        NavRow(
+        SettingsNavRow(
             title = "Импорт из бэкапа",
             subtitle = "Заменит текущие документы",
             onClick = {
@@ -245,7 +234,7 @@ fun SettingsScreen(
         Spacer(Modifier.height(22.dp))
         SectionTitle(text = "Прочее")
         Spacer(Modifier.height(10.dp))
-        NavRow(
+        SettingsNavRow(
             title = "О приложении и конфиденциальность",
             onClick = {
                 haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -254,7 +243,7 @@ fun SettingsScreen(
         )
 
         Spacer(Modifier.height(10.dp))
-        NavRow(
+        SettingsNavRow(
             title = "Удалить все документы",
             subtitle = "Безвозвратно, только на этом устройстве",
             danger = true,
@@ -329,86 +318,6 @@ fun SettingsScreen(
                 Toast.makeText(context, "Все документы удалены", Toast.LENGTH_SHORT).show()
             },
             onDismiss = { showWipe = false }
-        )
-    }
-}
-
-@Composable
-private fun SwitchRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    enabled: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(WalletTheme.extra.glassFill)
-            .border(1.dp, WalletTheme.extra.glassBorder, RoundedCornerShape(16.dp))
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = if (enabled) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            )
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Spacer(Modifier.width(8.dp))
-        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
-    }
-}
-
-@Composable
-private fun NavRow(
-    title: String,
-    subtitle: String = "",
-    danger: Boolean = false,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(WalletTheme.extra.glassFill)
-            .border(1.dp, WalletTheme.extra.glassBorder, RoundedCornerShape(16.dp))
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = if (danger) Palette.Danger else MaterialTheme.colorScheme.onSurface
-            )
-            if (subtitle.isNotBlank()) {
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
