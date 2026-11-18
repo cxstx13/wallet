@@ -17,17 +17,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -38,7 +38,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -46,7 +45,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
@@ -58,42 +56,16 @@ import ru.rfdocs.wallet.data.model.DocTemplates
 import ru.rfdocs.wallet.data.repo.DocRepository
 import ru.rfdocs.wallet.data.repo.PhotoStore
 import ru.rfdocs.wallet.ui.WalletViewModel
+import ru.rfdocs.wallet.ui.components.DocFieldEditor
 import ru.rfdocs.wallet.ui.components.PhotoThumbStrip
 import ru.rfdocs.wallet.ui.components.PhotoViewerDialog
 import ru.rfdocs.wallet.ui.components.SectionTitle
+import ru.rfdocs.wallet.ui.components.WalletField
+import ru.rfdocs.wallet.ui.components.DocumentStyleCard
+import ru.rfdocs.wallet.ui.input.DateMask
+import ru.rfdocs.wallet.ui.input.Masks
 import ru.rfdocs.wallet.ui.theme.Palette
 import java.util.UUID
-
-private fun isNumericMask(mask: String?): Boolean {
-    if (mask.isNullOrBlank()) return false
-    return mask.all { it == '0' || !it.isLetter() }
-}
-
-private fun digitCountOf(mask: String): Int = mask.count { it == '0' }
-
-private fun applyMask(raw: String, mask: String?): String {
-    if (mask.isNullOrBlank()) return raw
-    val digits = raw.filter { it.isDigit() }
-    val builder = StringBuilder()
-    var index = 0
-    for (ch in mask) {
-        if (index >= digits.length) break
-        if (ch == '0') {
-            builder.append(digits[index])
-            index++
-        } else {
-            builder.append(ch)
-        }
-    }
-    return builder.toString()
-}
-
-private fun isRequiredLabel(label: String): Boolean {
-    val lower = label.lowercase()
-    return lower.contains("фам") || lower.contains("имя") ||
-        lower.contains("серия") || lower.contains("номер") ||
-        lower.contains("инн") || lower.contains("снилс")
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,15 +84,35 @@ fun CardEditScreen(
     val template = remember(typeKey, existing) {
         DocTemplates.byKey(existing?.typeKey ?: typeKey.orEmpty())
     }
-    val title = template?.title ?: existing?.title ?: "Документ"
+    val resolvedTypeKey = existing?.typeKey ?: template?.key ?: typeKey.orEmpty()
+    val isCustom = resolvedTypeKey.equals("CUSTOM", ignoreCase = true)
 
-    val values = remember(template, existing) {
-        mutableStateMapOf<String, String>().apply {
-            template?.fields?.forEach { spec ->
-                put(spec.key, existing?.fields?.firstOrNull { it.key == spec.key }?.value ?: "")
-            }
-            existing?.fields?.forEach { field ->
-                if (!containsKey(field.key)) put(field.key, field.value)
+    var cardTitle by remember {
+        mutableStateOf(existing?.title ?: template?.title ?: "Документ")
+    }
+
+    val fields = remember(template, existing) {
+        mutableStateListOf<DocField>().apply {
+            val specs = template?.fields.orEmpty()
+            if (specs.isEmpty()) {
+                existing?.fields?.forEach { add(it) }
+                if (isEmpty()) {
+                    add(DocField(key = "field_1", label = "Поле 1", value = ""))
+                }
+            } else {
+                specs.forEach { spec ->
+                    val value = existing?.fields?.firstOrNull { it.key == spec.key }?.value ?: ""
+                    add(
+                        DocField(
+                            key = spec.key,
+                            label = spec.label,
+                            value = value,
+                            mask = spec.mask,
+                            secret = spec.secret,
+                            phone = spec.phone
+                        )
+                    )
+                }
             }
         }
     }
@@ -129,7 +121,6 @@ fun CardEditScreen(
         mutableStateListOf<String>().apply { addAll(existing?.photoIds ?: emptyList()) }
     }
     var viewingPhoto by remember { mutableStateOf<String?>(null) }
-    val errorKeys = remember(template) { mutableStateMapOf<String, String>() }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -148,66 +139,51 @@ fun CardEditScreen(
         }
     }
 
-    fun validate(): Boolean {
-        errorKeys.clear()
-        template?.fields?.forEach { spec ->
-            val value = values[spec.key].orEmpty().trim()
-            val mask = spec.mask
-            when {
-                value.isEmpty() && isRequiredLabel(spec.label) -> {
-                    errorKeys[spec.key] = "Обязательное поле"
-                }
-
-                !mask.isNullOrBlank() && value.isNotEmpty() &&
-                    digitCountOf(mask) > 0 &&
-                    value.filter { it.isDigit() }.length != digitCountOf(mask) -> {
-                    errorKeys[spec.key] = "Неполный формат: нужно ${digitCountOf(mask)} цифр"
-                }
-            }
-        }
-        return errorKeys.isEmpty()
-    }
+    val previewFields = fields.toList()
+    val previewCard = DocCard(
+        id = existing?.id ?: "preview",
+        typeKey = resolvedTypeKey,
+        title = cardTitle.ifBlank { "Документ" },
+        fields = previewFields
+    )
 
     fun save() {
-        if (!validate()) {
-            scope.launch {
-                snackbarHostState.showSnackbar("Проверьте выделенные поля")
-            }
+        val invalidDate = fields.firstOrNull { field ->
+            field.mask == Masks.DATE && DateMask.error(field.value) != null
+        }
+        if (invalidDate != null) {
+            scope.launch { snackbarHostState.showSnackbar("Проверьте дату в поле «${invalidDate.label}»") }
             return
         }
 
-        val now = System.currentTimeMillis()
-        val builtFields = buildList {
-            template?.fields?.forEach { spec ->
-                add(
-                    DocField(
-                        key = spec.key,
-                        label = spec.label,
-                        value = values[spec.key].orEmpty().trim(),
-                        mask = spec.mask,
-                        secret = spec.secret,
-                        phone = spec.phone
+        val cleaned = if (isCustom) {
+            fields
+                .filter { it.label.isNotBlank() || it.value.isNotBlank() }
+                .map { field ->
+                    field.copy(
+                        key = field.key.ifBlank { UUID.randomUUID().toString() },
+                        label = field.label.ifBlank { "Поле" },
+                        value = field.value.trim()
                     )
-                )
-            }
-            existing?.fields?.forEach { field ->
-                if (none { it.key == field.key }) add(field)
-            }
+                }
+        } else {
+            fields.map { field -> field.copy(value = field.value.trim()) }
         }
 
+        val now = System.currentTimeMillis()
         val card = if (existing != null) {
             existing.copy(
-                title = title,
-                fields = builtFields,
+                title = cardTitle.trim().ifBlank { "Документ" },
+                fields = cleaned,
                 photoIds = photoIds.toList(),
                 updatedAt = now
             )
         } else {
             DocCard(
                 id = UUID.randomUUID().toString(),
-                typeKey = template?.key ?: typeKey.orEmpty(),
-                title = title,
-                fields = builtFields,
+                typeKey = resolvedTypeKey,
+                title = cardTitle.trim().ifBlank { "Документ" },
+                fields = cleaned,
                 photoIds = photoIds.toList(),
                 createdAt = now,
                 updatedAt = now
@@ -232,7 +208,7 @@ fun CardEditScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = title,
+                        text = if (existing == null) "Новый документ" else "Редактирование",
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -274,18 +250,6 @@ fun CardEditScreen(
             }
         }
     ) { padding ->
-        if (template == null && existing == null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Шаблон документа не найден")
-            }
-            return@Scaffold
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -294,42 +258,123 @@ fun CardEditScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            template?.fields?.forEach { spec ->
-                val error = errorKeys[spec.key]
-                OutlinedTextField(
-                    value = values[spec.key].orEmpty(),
-                    onValueChange = { raw ->
-                        values[spec.key] = applyMask(raw, spec.mask)
-                        if (errorKeys.containsKey(spec.key)) errorKeys.remove(spec.key)
-                    },
-                    label = { Text(spec.label) },
-                    singleLine = true,
-                    isError = error != null,
-                    supportingText = if (error != null) {
-                        { Text(text = error, color = Palette.Danger) }
-                    } else {
-                        null
-                    },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = if (isNumericMask(spec.mask)) KeyboardType.Number else KeyboardType.Text
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+            DocumentStyleCard(
+                card = previewCard,
+                showNumber = true,
+                modifier = Modifier.fillMaxWidth()
+            )
 
-            existing?.fields?.forEach { field ->
-                if (template?.fields?.none { it.key == field.key } != false) {
-                    OutlinedTextField(
-                        value = values[field.key].orEmpty(),
-                        onValueChange = { raw -> values[field.key] = raw },
-                        label = { Text(field.label) },
+            Spacer(Modifier.height(4.dp))
+
+            if (isCustom || fields.any { it.mask.isNullOrBlank() && it.key.startsWith("field_") }) {
+                WalletField(label = "Название карточки") {
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = cardTitle,
+                        onValueChange = { cardTitle = it },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurface
+                        ),
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(Palette.Gold),
+                        modifier = Modifier.fillMaxWidth(),
+                        decorationBox = { inner ->
+                            if (cardTitle.isEmpty()) {
+                                Text(
+                                    text = "Например, пропуск или абонемент",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            }
+                            inner()
+                        }
                     )
                 }
             }
 
+            SectionTitle(text = "Поля документа")
             Spacer(Modifier.height(4.dp))
+
+            fields.forEachIndexed { index, field ->
+                if (isCustom) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            WalletField(
+                                label = "Название поля",
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                androidx.compose.foundation.text.BasicTextField(
+                                    value = field.label,
+                                    onValueChange = { value ->
+                                        fields[index] = field.copy(label = value)
+                                    },
+                                    singleLine = true,
+                                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    cursorBrush = androidx.compose.ui.graphics.SolidColor(Palette.Gold),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            IconButton(
+                                onClick = { fields.removeAt(index) },
+                                modifier = Modifier.padding(start = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Delete,
+                                    contentDescription = "Удалить поле",
+                                    tint = Palette.Danger
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        WalletField(label = "Значение") {
+                            androidx.compose.foundation.text.BasicTextField(
+                                value = field.value,
+                                onValueChange = { value ->
+                                    fields[index] = field.copy(value = value)
+                                },
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                    color = MaterialTheme.colorScheme.onSurface
+                                ),
+                                cursorBrush = androidx.compose.ui.graphics.SolidColor(Palette.Gold),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                } else {
+                    DocFieldEditor(
+                        field = field,
+                        onFieldChange = { updated -> fields[index] = updated }
+                    )
+                }
+            }
+
+            if (isCustom) {
+                OutlinedButton(
+                    onClick = {
+                        fields.add(
+                            DocField(
+                                key = "field_" + UUID.randomUUID().toString().take(8),
+                                label = "Поле ${fields.size + 1}",
+                                value = ""
+                            )
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Добавить поле")
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
             SectionTitle(text = "Фото документа")
             Spacer(Modifier.height(2.dp))
             Text(
