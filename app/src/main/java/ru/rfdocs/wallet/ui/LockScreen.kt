@@ -1,7 +1,6 @@
 package ru.rfdocs.wallet.ui
 
 import android.content.Context
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -39,6 +38,7 @@ import ru.rfdocs.wallet.security.CryptoManager
 import ru.rfdocs.wallet.security.LockManager
 import ru.rfdocs.wallet.security.PinVault
 import ru.rfdocs.wallet.security.SecurePrefs
+import ru.rfdocs.wallet.ui.components.WalletBackground
 import ru.rfdocs.wallet.ui.theme.Palette
 
 fun Context.findFragmentActivity(): FragmentActivity? {
@@ -113,11 +113,7 @@ fun LockScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
+    WalletBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -170,7 +166,7 @@ fun LockScreen(
         AlertDialog(
             onDismissRequest = { showReset = false },
             title = { Text("Сбросить хранилище?") },
-            text = { Text("Все сохранённые документы и PIN-код будут безвозвратно удалены с устройства.") },
+            text = { Text("Все сохранённые документы и PIN-код будут удалены с устройства.") },
             confirmButton = {
                 TextButton(onClick = {
                     showReset = false
