@@ -1,5 +1,6 @@
 package ru.rfdocs.wallet.ui.screens
 
+import android.app.Activity
 import android.net.Uri
 import android.view.WindowManager
 import android.widget.Toast
@@ -16,16 +17,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,17 +42,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import ru.rfdocs.wallet.data.repo.DocRepository
 import ru.rfdocs.wallet.security.BackupManager
 import ru.rfdocs.wallet.security.BiometricHelper
+import ru.rfdocs.wallet.security.CryptoManager
 import ru.rfdocs.wallet.security.PinVault
 import ru.rfdocs.wallet.security.SecurePrefs
 import ru.rfdocs.wallet.ui.PinSetupScreen
 import ru.rfdocs.wallet.ui.WalletViewModel
 import ru.rfdocs.wallet.ui.components.SectionTitle
-import ru.rfdocs.wallet.ui.findFragmentActivity
 import ru.rfdocs.wallet.ui.theme.Palette
 import ru.rfdocs.wallet.ui.theme.WalletTheme
 
@@ -66,41 +69,24 @@ fun SettingsScreen(
     onAbout: () -> Unit
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val view = LocalView.current
     val haptics = LocalHapticFeedback.current
-    val activity = remember(context) { context.findFragmentActivity() }
+    val scope = rememberCoroutineScope()
+
+    val activity = view.context as? Activity
 
     var biometricEnabled by remember { mutableStateOf(SecurePrefs.isBiometricEnabled(context)) }
-    var screenshotProtected by remember { mutableStateOf(SecurePrefs.isScreenshotProtected(context)) }
+    var screenshotProtected by remember { mutableStateOf(true) }
     var showPinChange by remember { mutableStateOf(false) }
     var showWipe by remember { mutableStateOf(false) }
-    var pendingExportUri by remember { mutableStateOf<Uri?>(null) }
-    var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
     var showExportPassword by remember { mutableStateOf(false) }
     var showImportPassword by remember { mutableStateOf(false) }
+    var pendingExportUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
 
     val biometricAvailable = remember { BiometricHelper.isBiometricAvailable(context) }
 
-    val createBackup = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
-    ) { uri: Uri? ->
-        if (uri != null) {
-            pendingExportUri = uri
-            showExportPassword = true
-        }
-    }
-
-    val openBackup = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            pendingImportUri = uri
-            showImportPassword = true
-        }
-    }
-
     fun applyScreenshotProtection(enabled: Boolean) {
-        SecurePrefs.setScreenshotProtected(context, enabled)
         screenshotProtected = enabled
         val window = activity?.window
         if (window != null) {
@@ -109,6 +95,24 @@ fun SettingsScreen(
             } else {
                 window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
             }
+        }
+    }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            pendingExportUri = uri
+            showExportPassword = true
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            pendingImportUri = uri
+            showImportPassword = true
         }
     }
 
@@ -129,19 +133,17 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
-            .statusBarsPadding()
-            .padding(horizontal = 20.dp)
-            .navigationBarsPadding()
+            .padding(horizontal = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             IconButton(onClick = onBack) {
                 Icon(
-                    imageVector = Icons.Rounded.ArrowBack,
-                    contentDescription = "Назад",
-                    tint = MaterialTheme.colorScheme.onSurface
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Назад"
                 )
             }
             Text(
@@ -152,9 +154,9 @@ fun SettingsScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(Modifier.height(8.dp))
         SectionTitle(text = "Безопасность")
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(Modifier.height(10.dp))
 
         SwitchRow(
             title = "Вход по отпечатку",
@@ -171,11 +173,12 @@ fun SettingsScreen(
                 SecurePrefs.setBiometricEnabled(context, value)
             }
         )
-        Spacer(modifier = Modifier.height(10.dp))
+
+        Spacer(Modifier.height(10.dp))
         SwitchRow(
             title = "Запрет скриншотов",
             subtitle = if (screenshotProtected) {
-                "FLAG_SECURE включён: снимки экрана и запись заблокированы"
+                "FLAG_SECURE включён: снимки экрана блокируются"
             } else {
                 "Снимки экрана разрешены — данные видны при захвате"
             },
@@ -186,7 +189,8 @@ fun SettingsScreen(
                 applyScreenshotProtection(value)
             }
         )
-        Spacer(modifier = Modifier.height(10.dp))
+
+        Spacer(Modifier.height(10.dp))
         NavRow(
             title = "Сменить PIN-код",
             onClick = {
@@ -195,9 +199,9 @@ fun SettingsScreen(
             }
         )
 
-        Spacer(modifier = Modifier.height(22.dp))
+        Spacer(Modifier.height(22.dp))
         SectionTitle(text = "Оформление")
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(Modifier.height(10.dp))
         SwitchRow(
             title = "Тёмная тема",
             subtitle = "Глубокий графитовый фон",
@@ -209,30 +213,35 @@ fun SettingsScreen(
             }
         )
 
-        Spacer(modifier = Modifier.height(22.dp))
+        Spacer(Modifier.height(22.dp))
         SectionTitle(text = "Резервная копия")
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(Modifier.height(10.dp))
         NavRow(
             title = "Экспорт зашифрованного бэкапа",
             subtitle = "Один файл, защищённый паролем",
             onClick = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                createBackup.launch(BackupManager.suggestedFileName())
+                if (DocRepository.cardCount() == 0) {
+                    Toast.makeText(context, "Нет документов для экспорта", Toast.LENGTH_SHORT).show()
+                } else {
+                    exportLauncher.launch(BackupManager.suggestedFileName())
+                }
             }
         )
-        Spacer(modifier = Modifier.height(10.dp))
+
+        Spacer(Modifier.height(10.dp))
         NavRow(
             title = "Импорт из бэкапа",
             subtitle = "Заменит текущие документы",
             onClick = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                openBackup.launch(arrayOf("application/octet-stream", "*/*"))
+                importLauncher.launch(arrayOf("application/octet-stream", "*/*"))
             }
         )
 
-        Spacer(modifier = Modifier.height(22.dp))
+        Spacer(Modifier.height(22.dp))
         SectionTitle(text = "Прочее")
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(Modifier.height(10.dp))
         NavRow(
             title = "О приложении и конфиденциальность",
             onClick = {
@@ -240,7 +249,8 @@ fun SettingsScreen(
                 onAbout()
             }
         )
-        Spacer(modifier = Modifier.height(10.dp))
+
+        Spacer(Modifier.height(10.dp))
         NavRow(
             title = "Удалить все документы",
             subtitle = "Безвозвратно, только на этом устройстве",
@@ -251,7 +261,7 @@ fun SettingsScreen(
             }
         )
 
-        Spacer(modifier = Modifier.height(44.dp))
+        Spacer(Modifier.height(32.dp))
     }
 
     if (showExportPassword) {
@@ -264,7 +274,12 @@ fun SettingsScreen(
                 showExportPassword = false
                 if (uri != null) {
                     scope.launch {
-                        val message = viewModel.exportBackup(uri, password)
+                        val message = withContext(Dispatchers.IO) {
+                            BackupManager.exportTo(context, uri, password).fold(
+                                onSuccess = { count -> "Экспортировано документов: $count" },
+                                onFailure = { error -> error.message ?: "Ошибка экспорта" }
+                            )
+                        }
                         Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                     }
                 }
@@ -283,7 +298,15 @@ fun SettingsScreen(
                 showImportPassword = false
                 if (uri != null) {
                     scope.launch {
-                        val message = viewModel.importBackup(uri, password)
+                        val message = withContext(Dispatchers.IO) {
+                            BackupManager.importFrom(context, uri, password).fold(
+                                onSuccess = { count ->
+                                    DocRepository.refresh()
+                                    "Восстановлено документов: $count"
+                                },
+                                onFailure = { error -> error.message ?: "Не удалось восстановить бэкап" }
+                            )
+                        }
                         Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                     }
                 }
@@ -298,7 +321,8 @@ fun SettingsScreen(
             message = "Все карточки и фотографии будут удалены с устройства. Действие необратимо.",
             confirmText = "Удалить",
             onConfirm = {
-                viewModel.wipeVault()
+                DocRepository.wipeAll()
+                CryptoManager.wipeKey()
                 Toast.makeText(context, "Все документы удалены", Toast.LENGTH_SHORT).show()
             },
             onDismiss = { showWipe = false }
@@ -333,13 +357,14 @@ private fun SwitchRow(
                     MaterialTheme.colorScheme.onSurfaceVariant
                 }
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        Spacer(Modifier.size(8.dp))
         Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
 }
@@ -369,7 +394,7 @@ private fun NavRow(
                 color = if (danger) Palette.Danger else MaterialTheme.colorScheme.onSurface
             )
             if (subtitle.isNotBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(Modifier.height(2.dp))
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.labelSmall,
@@ -377,12 +402,10 @@ private fun NavRow(
                 )
             }
         }
-        Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = Icons.Rounded.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
