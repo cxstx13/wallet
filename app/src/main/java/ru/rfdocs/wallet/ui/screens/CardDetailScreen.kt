@@ -16,10 +16,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -51,13 +51,15 @@ import kotlinx.coroutines.withContext
 import ru.rfdocs.wallet.data.repo.DocRepository
 import ru.rfdocs.wallet.data.repo.PhotoStore
 import ru.rfdocs.wallet.ui.WalletViewModel
+import ru.rfdocs.wallet.ui.components.CardAction
+import ru.rfdocs.wallet.ui.components.CardActionsFab
+import ru.rfdocs.wallet.ui.components.CardPhotosSection
+import ru.rfdocs.wallet.ui.components.DocumentStyleCard
 import ru.rfdocs.wallet.ui.components.ExpiryBanner
 import ru.rfdocs.wallet.ui.components.FieldRow
 import ru.rfdocs.wallet.ui.components.GlassPanel
-import ru.rfdocs.wallet.ui.components.PlasticCard
 import ru.rfdocs.wallet.ui.components.SectionTitle
-import ru.rfdocs.wallet.ui.components.copyText
-import ru.rfdocs.wallet.ui.input.FieldMasks
+import ru.rfdocs.wallet.ui.components.expiryDateOf
 import ru.rfdocs.wallet.ui.input.PhoneMask
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,11 +89,7 @@ fun CardDetailScreen(
                 val bytes = runCatching {
                     context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 }.getOrNull()
-                if (bytes == null || bytes.isEmpty()) {
-                    null
-                } else {
-                    PhotoStore.save(context, bytes)
-                }
+                if (bytes == null || bytes.isEmpty()) null else PhotoStore.save(context, bytes)
             } ?: return@launch
 
             DocRepository.get(cardId)?.let { current ->
@@ -116,26 +114,9 @@ fun CardDetailScreen(
         return
     }
 
-    val primaryField = card.fields.firstOrNull { it.value.isNotBlank() }
     val phoneField = card.fields.firstOrNull { it.phone && it.value.isNotBlank() }
 
     val actions = buildList {
-        add(
-            CardAction(
-                label = "Копировать",
-                icon = Icons.Filled.ContentCopy,
-                onClick = {
-                    val value = primaryField?.let { field ->
-                        if (field.mask.isNullOrBlank()) {
-                            field.value
-                        } else {
-                            FieldMasks.display(field.value, field.mask)
-                        }
-                    }.orEmpty()
-                    copyText(context, value, "Скопировано")
-                }
-            )
-        )
         add(
             CardAction(
                 label = "Поделиться",
@@ -146,14 +127,14 @@ fun CardDetailScreen(
         add(
             CardAction(
                 label = "QR-код",
-                icon = Icons.Filled.Info,
+                icon = Icons.Filled.QrCode2,
                 onClick = { showQr = true }
             )
         )
         add(
             CardAction(
-                label = "Фото",
-                icon = Icons.Filled.Add,
+                label = "Фото документа",
+                icon = Icons.Filled.PhotoCamera,
                 onClick = { picker.launch("image/*") }
             )
         )
@@ -191,18 +172,22 @@ fun CardDetailScreen(
                 actions = {
                     IconButton(
                         onClick = {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             showNumber = !showNumber
                         }
                     ) {
                         Icon(
-                            imageVector = if (showNumber) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            imageVector = if (showNumber) {
+                                Icons.Filled.VisibilityOff
+                            } else {
+                                Icons.Filled.Visibility
+                            },
                             contentDescription = if (showNumber) "Скрыть номер" else "Показать номер"
                         )
                     }
                     IconButton(
                         onClick = {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onEdit(card.id)
                         }
                     ) {
@@ -213,7 +198,7 @@ fun CardDetailScreen(
                     }
                     IconButton(
                         onClick = {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             showDelete = true
                         }
                     ) {
@@ -242,13 +227,13 @@ fun CardDetailScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
         ) {
-            PlasticCard(
+            DocumentStyleCard(
                 card = card,
                 modifier = Modifier.fillMaxWidth(),
                 showNumber = showNumber
             )
 
-            if (expiryDateOfCard(card) != null) {
+            if (expiryDateOf(card) != null) {
                 Spacer(Modifier.height(16.dp))
                 ExpiryBanner(card = card)
             }
@@ -317,6 +302,3 @@ fun CardDetailScreen(
         )
     }
 }
-
-private fun expiryDateOfCard(card: ru.rfdocs.wallet.data.model.DocCard): java.time.LocalDate? =
-    ru.rfdocs.wallet.ui.components.expiryDateOf(card)
