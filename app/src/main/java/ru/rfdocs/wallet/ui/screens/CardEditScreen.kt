@@ -1,9 +1,8 @@
 package ru.rfdocs.wallet.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,61 +11,55 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardOptions
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import ru.rfdocs.wallet.data.model.DocCard
-import ru.rfdocs.wallet.data.model.DocCategory
 import ru.rfdocs.wallet.data.model.DocField
-import ru.rfdocs.wallet.data.model.FieldKind
-import ru.rfdocs.wallet.data.model.GradientKeys
+import ru.rfdocs.wallet.data.model.DocTemplates
+import ru.rfdocs.wallet.data.repo.DocRepository
+import ru.rfdocs.wallet.data.repo.PhotoStore
 import ru.rfdocs.wallet.ui.WalletViewModel
-import ru.rfdocs.wallet.ui.components.DocFieldEditor
-import ru.rfdocs.wallet.ui.components.FieldLabel
-import ru.rfdocs.wallet.ui.components.GlassPanel
-import ru.rfdocs.wallet.ui.components.SectionTitle
-import ru.rfdocs.wallet.ui.components.WalletField
-import ru.rfdocs.wallet.ui.input.DateMask
-import ru.rfdocs.wallet.ui.theme.CardGradients
-import ru.rfdocs.wallet.ui.theme.Palette
-import ru.rfdocs.wallet.ui.theme.WalletTheme
 import java.util.UUID
 
-private val EXPIRY_LABELS = listOf(
-    "Действует по",
-    "Действителен до",
-    "Действительно до"
-)
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardEditScreen(
     viewModel: WalletViewModel,
@@ -75,289 +68,265 @@ fun CardEditScreen(
     onBack: () -> Unit,
     onDone: (String) -> Unit
 ) {
-    val haptics = LocalHapticFeedback.current
-    val loaded = remember(cardId, typeKey) {
-        viewModel.getCard(cardId) ?: typeKey?.let { viewModel.blankCard(it) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    val existing = remember(cardId) { cardId?.let { DocRepository.get(it) } }
+    val template = remember(typeKey, existing) {
+        DocTemplates.byKey(existing?.typeKey ?: typeKey.orEmpty())
     }
-    val startCard: DocCard = loaded ?: DocCard(
-        typeKey = typeKey ?: "",
-        title = "Документ",
-        category = DocCategory.OTHER
-    )
-    var draft by remember { mutableStateOf(startCard) }
+    val title = template?.title ?: existing?.title ?: "Документ"
 
-    val isCustom = draft.typeKey == "CUSTOM"
-
-    fun updateField(fieldId: String, updated: DocField) {
-        draft = draft.copy(
-            fields = draft.fields.map { field ->
-                if (field.id == fieldId) updated else field
+    val values = remember(template, existing) {
+        mutableStateMapOf<String, String>().apply {
+            template?.fields?.forEach { spec ->
+                put(spec.key, existing?.fields?.firstOrNull { it.key == spec.key }?.value ?: "")
             }
-        )
+            existing?.fields?.forEach { field ->
+                if (!containsKey(field.key)) put(field.key, field.value)
+            }
+        }
+    }
+
+    val photoIds = remember(existing) {
+        mutableStateListOf<String>().apply { addAll(existing?.photoIds ?: emptyList()) }
+    }
+
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val bytes = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }.getOrNull()
+            }
+            if (bytes == null || bytes.isEmpty()) {
+                snackbarHostState.showSnackbar("Не удалось прочитать фото")
+                return@launch
+            }
+            val saved = withContext(Dispatchers.IO) { PhotoStore.save(context, bytes) }
+            photoIds.add(saved)
+        }
     }
 
     fun save() {
-        val cleaned = draft.fields.mapNotNull { field ->
-            val label = field.label.trim()
-            val value = field.value.trim()
-            if (label.isEmpty() && value.isEmpty()) {
-                null
-            } else {
-                field.copy(label = label.ifEmpty { "Поле" }, value = value)
-            }
-        }
-        val expiry = EXPIRY_LABELS.firstNotNullOfOrNull { label ->
-            cleaned.firstOrNull { it.label.contains(label, ignoreCase = true) }
-                ?.let { DateMask.toIso(it.value) }
-        }.orEmpty()
-        val phoneValue = cleaned.firstOrNull { field ->
-            field.kind == FieldKind.PHONE || field.label.contains("Телефон", ignoreCase = true)
-        }?.value.orEmpty()
-
-        val card = draft.copy(
-            title = draft.title.trim().ifEmpty { "Документ" },
-            subtitle = draft.category.label,
-            fields = cleaned,
-            validUntil = expiry,
-            phone = phoneValue
-        )
-        viewModel.saveCard(card)
-        onDone(card.id)
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .statusBarsPadding()
-            .padding(horizontal = 20.dp)
-            .navigationBarsPadding()
-    ) {
-        Spacer(modifier = Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.Rounded.ArrowBack,
-                    contentDescription = "Назад",
-                    tint = MaterialTheme.colorScheme.onSurface
+        val now = System.currentTimeMillis()
+        val builtFields = buildList {
+            template?.fields?.forEach { spec ->
+                add(
+                    DocField(
+                        key = spec.key,
+                        label = spec.label,
+                        value = values[spec.key].orEmpty().trim(),
+                        mask = spec.mask,
+                        secret = spec.secret,
+                        phone = spec.phone
+                    )
                 )
             }
-            Text(
-                text = if (cardId == null) "Новый документ" else "Редактирование",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.weight(1f)
-            )
-            Box(
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(WalletTheme.extra.chipSelectedFill)
-                    .clickable {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        save()
-                    }
-                    .padding(horizontal = 18.dp, vertical = 10.dp)
-            ) {
-                Text(
-                    text = "Сохранить",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = WalletTheme.extra.chipSelectedText,
-                    fontWeight = FontWeight.SemiBold
-                )
+            existing?.fields?.forEach { field ->
+                if (none { it.key == field.key }) add(field)
             }
         }
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        if (isCustom) {
-            DocFieldEditor(
-                field = DocField(
-                    label = "Название карточки",
-                    value = draft.title,
-                    kind = FieldKind.TEXT,
-                    placeholder = "Например, пропуск на работу",
-                    capitalizeWords = true
-                ),
-                onFieldChange = { updated -> draft = draft.copy(title = updated.value) }
+        val card = if (existing != null) {
+            existing.copy(
+                title = title,
+                fields = builtFields,
+                photoIds = photoIds.toList(),
+                updatedAt = now
             )
         } else {
-            GlassPanel(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = draft.title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = draft.category.label,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = WalletTheme.extra.fieldLabel
-                )
-            }
+            DocCard(
+                id = UUID.randomUUID().toString(),
+                typeKey = template?.key ?: typeKey.orEmpty(),
+                title = title,
+                fields = builtFields,
+                photoIds = photoIds.toList(),
+                createdAt = now,
+                updatedAt = now
+            )
         }
-
-        Spacer(modifier = Modifier.height(22.dp))
-        SectionTitle(text = "Цвет карточки")
-        Spacer(modifier = Modifier.height(10.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            GradientKeys.all.forEach { key ->
-                val gradient = CardGradients.of(key)
-                val selected = draft.gradientKey == key
-                Box(
-                    modifier = Modifier
-                        .size(if (selected) 44.dp else 34.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                listOf(gradient.start, gradient.middle, gradient.end)
-                            )
-                        )
-                        .border(
-                            width = if (selected) 2.dp else 1.dp,
-                            color = if (selected) Palette.Gold else Color.White.copy(alpha = 0.28f),
-                            shape = CircleShape
-                        )
-                        .clickable {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            draft = draft.copy(gradientKey = key)
-                        }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-        SectionTitle(text = "Данные документа")
-        Spacer(modifier = Modifier.height(12.dp))
-
-        draft.fields.forEach { field ->
-            Column(modifier = Modifier.fillMaxWidth()) {
-                if (field.editableLabel || isCustom) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.weight(1f)) {
-                            LabelEditor(
-                                value = field.label,
-                                onValueChange = { newLabel ->
-                                    updateField(field.id, field.copy(label = newLabel))
-                                }
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                draft = draft.copy(fields = draft.fields.filterNot { it.id == field.id })
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Close,
-                                contentDescription = "Удалить поле",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
+        runCatching { DocRepository.upsert(card) }
+            .onSuccess { onDone(card.id) }
+            .onFailure { error ->
+                scope.launch {
+                    snackbarHostState.showSnackbar(error.message ?: "Не удалось сохранить документ")
                 }
+            }
+    }
 
-                DocFieldEditor(
-                    field = field,
-                    onFieldChange = { updated -> updateField(field.id, updated) }
-                )
-
-                if (field.kind == FieldKind.DATE &&
-                    field.value.length == DateMask.MAX_DIGITS &&
-                    !DateMask.isValid(field.value)
-                ) {
-                    Spacer(modifier = Modifier.height(6.dp))
+    Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            TopAppBar(
+                title = {
                     Text(
-                        text = "Проверьте дату",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Palette.Danger
+                        text = title,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+        },
+        bottomBar = {
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 3.dp,
+                shadowElevation = 10.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Button(
+                        onClick = { save() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                    ) {
+                        Text("Сохранить", style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+            }
+        }
+    ) { padding ->
+        if (template == null && existing == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Шаблон документа не найден")
+            }
+            return@Scaffold
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            template?.fields?.forEach { spec ->
+                OutlinedTextField(
+                    value = values[spec.key].orEmpty(),
+                    onValueChange = { raw ->
+                        values[spec.key] = applyMask(raw, spec.mask)
+                    },
+                    label = { Text(spec.label) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = if (isNumericMask(spec.mask)) KeyboardType.Number else KeyboardType.Text
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            existing?.fields?.forEach { field ->
+                if (template?.fields?.none { it.key == field.key } != false) {
+                    OutlinedTextField(
+                        value = values[field.key].orEmpty(),
+                        onValueChange = { raw -> values[field.key] = raw },
+                        label = { Text(field.label) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
             }
-        }
 
-        if (isCustom) {
+            Spacer(Modifier.height(4.dp))
+
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(WalletTheme.extra.fieldFill)
-                    .border(1.dp, WalletTheme.extra.fieldStroke, RoundedCornerShape(14.dp))
-                    .clickable {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        draft = draft.copy(
-                            fields = draft.fields + DocField(
-                                id = UUID.randomUUID().toString(),
-                                label = "Новое поле",
-                                kind = FieldKind.TEXT,
-                                placeholder = "Значение",
-                                editableLabel = true
-                            )
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = { picker.launch("image/*") },
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.AddPhotoAlternate,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Добавить фото")
+                }
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text = if (photoIds.isEmpty()) "Фото не добавлены" else "Фото: ${photoIds.size}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            photoIds.forEach { photoId ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Фото ${photoId.take(8)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    IconButton(onClick = { photoIds.remove(photoId) }) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = "Удалить фото",
+                            tint = Color(0xFFE05252)
                         )
                     }
-                    .padding(horizontal = 14.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Add,
-                    contentDescription = null,
-                    tint = Palette.Gold,
-                    modifier = Modifier.size(18.dp)
-                )
-                Text(
-                    text = "Добавить поле",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                }
             }
-            Spacer(modifier = Modifier.height(22.dp))
+
+            Spacer(Modifier.height(16.dp))
         }
-
-        SectionTitle(text = "Заметка")
-        Spacer(modifier = Modifier.height(10.dp))
-        DocFieldEditor(
-            field = DocField(
-                label = "Личная заметка",
-                value = draft.note,
-                kind = FieldKind.MULTILINE,
-                multiline = true,
-                placeholder = "Необязательно"
-            ),
-            onFieldChange = { updated -> draft = draft.copy(note = updated.value) }
-        )
-
-        Spacer(modifier = Modifier.height(48.dp))
     }
 }
 
-@Composable
-private fun LabelEditor(
-    value: String,
-    onValueChange: (String) -> Unit
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        FieldLabel(text = "Название поля")
-        Spacer(modifier = Modifier.height(4.dp))
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
-            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                color = MaterialTheme.colorScheme.onSurface
-            ),
-            cursorBrush = SolidColor(Palette.Gold),
-            modifier = Modifier.fillMaxWidth()
-        )
+private fun isNumericMask(mask: String?): Boolean {
+    if (mask.isNullOrBlank()) return false
+    return mask.all { it == '0' || !it.isLetter() }
+}
+
+private fun applyMask(raw: String, mask: String?): String {
+    if (mask.isNullOrBlank()) return raw
+    val digits = raw.filter { it.isDigit() }
+    val builder = StringBuilder()
+    var index = 0
+    for (ch in mask) {
+        if (index >= digits.length) break
+        if (ch == '0') {
+            builder.append(digits[index])
+            index++
+        } else {
+            builder.append(ch)
+        }
     }
+    return builder.toString()
 }
