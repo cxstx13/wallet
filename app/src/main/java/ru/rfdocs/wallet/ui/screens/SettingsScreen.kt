@@ -25,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,13 +34,9 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import ru.rfdocs.wallet.data.repo.DocRepository
 import ru.rfdocs.wallet.security.BackupManager
 import ru.rfdocs.wallet.security.BiometricHelper
-import ru.rfdocs.wallet.security.CryptoManager
 import ru.rfdocs.wallet.security.PinVault
 import ru.rfdocs.wallet.security.SecurePrefs
 import ru.rfdocs.wallet.ui.PinSetupScreen
@@ -59,7 +54,6 @@ fun SettingsScreen(
     val context = LocalContext.current
     val view = LocalView.current
     val haptics = LocalHapticFeedback.current
-    val scope = rememberCoroutineScope()
 
     val activity = view.context as? Activity
 
@@ -256,68 +250,12 @@ fun SettingsScreen(
         Spacer(Modifier.height(32.dp))
     }
 
-    if (showExportPassword) {
-        PasswordDialog(
-            title = "Пароль для бэкапа",
-            message = "Файл будет зашифрован паролем. Запомните его — без пароля данные не восстановить.",
-            confirmText = "Экспортировать",
-            onConfirm = { password ->
-                val uri = pendingExportUri
-                showExportPassword = false
-                if (uri != null) {
-                    scope.launch {
-                        val message = withContext(Dispatchers.IO) {
-                            BackupManager.exportTo(context, uri, password).fold(
-                                onSuccess = { count -> "Экспортировано документов: $count" },
-                                onFailure = { error -> error.message ?: "Ошибка экспорта" }
-                            )
-                        }
-                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                    }
-                }
-            },
-            onDismiss = { showExportPassword = false }
-        )
-    }
-
-    if (showImportPassword) {
-        PasswordDialog(
-            title = "Пароль от бэкапа",
-            message = "Введите пароль, с которым создавался файл резервной копии.",
-            confirmText = "Импортировать",
-            onConfirm = { password ->
-                val uri = pendingImportUri
-                showImportPassword = false
-                if (uri != null) {
-                    scope.launch {
-                        val message = withContext(Dispatchers.IO) {
-                            BackupManager.importFrom(context, uri, password).fold(
-                                onSuccess = { count ->
-                                    DocRepository.refresh()
-                                    "Восстановлено документов: $count"
-                                },
-                                onFailure = { error -> error.message ?: "Не удалось восстановить бэкап" }
-                            )
-                        }
-                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                    }
-                }
-            },
-            onDismiss = { showImportPassword = false }
-        )
-    }
-
-    if (showWipe) {
-        ConfirmDialog(
-            title = "Удалить все документы?",
-            message = "Все карточки и фотографии будут удалены с устройства. Действие необратимо.",
-            confirmText = "Удалить",
-            onConfirm = {
-                DocRepository.wipeAll()
-                CryptoManager.wipeKey()
-                Toast.makeText(context, "Все документы удалены", Toast.LENGTH_SHORT).show()
-            },
-            onDismiss = { showWipe = false }
-        )
-    }
+    SettingsDialogs(
+        exportUri = if (showExportPassword) pendingExportUri else null,
+        importUri = if (showImportPassword) pendingImportUri else null,
+        wipeVisible = showWipe,
+        onDismissExport = { showExportPassword = false },
+        onDismissImport = { showImportPassword = false },
+        onDismissWipe = { showWipe = false }
+    )
 }
