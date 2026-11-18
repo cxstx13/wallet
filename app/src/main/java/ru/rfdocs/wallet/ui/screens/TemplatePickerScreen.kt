@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -87,10 +86,7 @@ fun TemplatePickerScreen(
                 SectionTitle(text = category.label)
                 Spacer(Modifier.height(10.dp))
                 templates.forEach { template ->
-                    TemplateRow(
-                        template = template,
-                        onClick = { onPick(template.key) }
-                    )
+                    TemplateRow(template = template, onClick = { onPick(template.key) })
                     Spacer(Modifier.height(10.dp))
                 }
             }
@@ -128,11 +124,7 @@ private fun TemplateRow(
                 .size(44.dp)
                 .clip(RoundedCornerShape(15.dp))
                 .background(Brush.linearGradient(gradient.colors))
-                .border(
-                    width = 1.dp,
-                    color = Color.White.copy(alpha = 0.14f),
-                    shape = RoundedCornerShape(15.dp)
-                ),
+                .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(15.dp)),
             contentAlignment = Alignment.Center
         ) {
             TypeBadge(
@@ -161,11 +153,5 @@ private fun TemplateRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
