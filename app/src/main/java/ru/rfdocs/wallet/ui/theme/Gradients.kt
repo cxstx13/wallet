@@ -11,64 +11,66 @@ data class CardGradient(
 
 object DocumentGradients {
 
+    private val Ink = Color(0xFF0C1016)
+
     val PassportRf = CardGradient(
-        colors = listOf(Palette.Ruby, Palette.RubyDeep),
-        accent = Palette.Gold,
-        deep = Palette.RubyDeep
+        colors = listOf(Color(0xFF3A1526), Color(0xFF1C0A12), Ink),
+        accent = Color(0xFFE7A9C0),
+        deep = Color(0xFF1C0A12)
     )
 
     val PassportForeign = CardGradient(
-        colors = listOf(Palette.Sapphire, Palette.SapphireDeep),
-        accent = Palette.SapphireLight,
-        deep = Palette.SapphireDeep
+        colors = listOf(Color(0xFF1C2B52), Color(0xFF111B33), Ink),
+        accent = Color(0xFF9BB0FF),
+        deep = Color(0xFF111B33)
     )
 
     val Snils = CardGradient(
-        colors = listOf(Palette.Emerald, Palette.EmeraldDeep),
-        accent = Palette.Gold,
-        deep = Palette.EmeraldDeep
+        colors = listOf(Color(0xFF12432F), Color(0xFF0B2A1F), Ink),
+        accent = Palette.Mint,
+        deep = Color(0xFF0B2A1F)
     )
 
     val Inn = CardGradient(
-        colors = listOf(Palette.Graphite, Palette.GraphiteDeep),
-        accent = Palette.Azure,
-        deep = Palette.GraphiteDeep
+        colors = listOf(Color(0xFF262C36), Color(0xFF151A21), Ink),
+        accent = Color(0xFFB9C6E8),
+        deep = Color(0xFF151A21)
     )
 
     val Vehicle = CardGradient(
-        colors = listOf(Palette.Anthracite, Palette.AnthraciteDeep),
-        accent = Palette.Amber,
-        deep = Palette.AnthraciteDeep
+        colors = listOf(Color(0xFF1B2129), Color(0xFF0F1318), Ink),
+        accent = Color(0xFFB9C6E8),
+        deep = Color(0xFF0F1318)
     )
 
     val Insurance = CardGradient(
-        colors = listOf(Palette.Indigo, Palette.IndigoDeep),
-        accent = Palette.SapphireLight,
-        deep = Palette.IndigoDeep
+        colors = listOf(Color(0xFF2A2C6B), Color(0xFF15173C), Ink),
+        accent = Color(0xFFA9B4FF),
+        deep = Color(0xFF15173C)
     )
 
     val Medicine = CardGradient(
-        colors = listOf(Palette.Turquoise, Palette.AzureDeep),
+        colors = listOf(Color(0xFF0F4E59), Color(0xFF0A2E36), Ink),
         accent = Palette.Azure,
-        deep = Palette.AzureDeep
+        deep = Color(0xFF0A2E36)
     )
 
     val Family = CardGradient(
-        colors = listOf(Palette.Terracotta, Palette.TerracottaDeep),
-        accent = Palette.GoldSoft,
-        deep = Palette.TerracottaDeep
+        colors = listOf(Color(0xFF4A2418), Color(0xFF27110B), Ink),
+        accent = Color(0xFFF3B79A),
+        deep = Color(0xFF27110B)
     )
 
     val Bank = CardGradient(
-        colors = listOf(Palette.Graphite, Palette.NightBase),
-        accent = Palette.Gold,
-        deep = Palette.NightBase
+        colors = listOf(Color(0xFF232A34), Color(0xFF11151B), Ink),
+        accent = Palette.GoldSoft,
+        deep = Color(0xFF11151B)
     )
 
     val Custom = CardGradient(
-        colors = listOf(Palette.Sapphire, Palette.IndigoDeep),
+        colors = listOf(Color(0xFF23264F), Color(0xFF12142C), Ink),
         accent = Palette.Gold,
-        deep = Palette.IndigoDeep
+        deep = Color(0xFF12142C)
     )
 
     fun forType(typeKey: String): CardGradient {
@@ -79,12 +81,11 @@ object DocumentGradients {
             key.contains("snils") -> Snils
             key.contains("inn") -> Inn
             key.contains("driver") || key.contains("vu") -> Vehicle
-            key.contains("sts") -> Vehicle
-            key.contains("pts") || key.contains("epts") -> Vehicle
+            key.contains("sts") || key.contains("pts") -> Vehicle
             key.contains("osago") || key.contains("kasko") -> Insurance
             key.contains("oms") || key.contains("dms") -> Medicine
-            key.contains("birth") || key.contains("family") || key.contains("sem") -> Family
-            key.contains("bank") || key.contains("requisite") -> Bank
+            key.contains("birth") || key.contains("family") -> Family
+            key.contains("bank") -> Bank
             else -> Custom
         }
     }
@@ -99,28 +100,37 @@ object DocumentGradients {
 
     fun screenBrush(dark: Boolean): Brush = if (dark) {
         Brush.verticalGradient(
-            colors = listOf(Palette.NightSurfaceHigh, Palette.NightBase)
+            colors = listOf(Color(0xFF0B0E15), Palette.NightBase)
         )
     } else {
         Brush.verticalGradient(
-            colors = listOf(Palette.LightSurface, Palette.LightBase)
+            colors = listOf(Color(0xFFF7F9FD), Palette.LightBase)
+        )
+    }
+
+    fun glowBrush(dark: Boolean): Brush = if (dark) {
+        Brush.radialGradient(
+            colors = listOf(Palette.Gold.copy(alpha = 0.16f), Color.Transparent)
+        )
+    } else {
+        Brush.radialGradient(
+            colors = listOf(Palette.Gold.copy(alpha = 0.20f), Color.Transparent)
         )
     }
 
     fun shineBrush(): Brush = Brush.linearGradient(
         colors = listOf(
-            Color.White.copy(alpha = 0.20f),
-            Color.White.copy(alpha = 0.04f),
-            Color.Transparent,
-            Color.White.copy(alpha = 0.07f)
+            Color.White.copy(alpha = 0.16f),
+            Color.White.copy(alpha = 0.03f),
+            Color.Transparent
         )
     )
 
     fun borderBrush(accent: Color): Brush = Brush.linearGradient(
         colors = listOf(
-            accent.copy(alpha = 0.55f),
-            Color.White.copy(alpha = 0.16f),
-            accent.copy(alpha = 0.25f)
+            accent.copy(alpha = 0.45f),
+            Color.White.copy(alpha = 0.14f),
+            accent.copy(alpha = 0.20f)
         )
     )
 }
