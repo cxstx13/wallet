@@ -9,8 +9,9 @@ import javax.crypto.spec.PBEKeySpec
 
 object PinVault {
 
-    const val DEFAULT_ITERATIONS = 120_000
-    const val KEY_BITS = 256
+    private const val ITERATIONS = 120_000
+    private const val KEY_LENGTH_BITS = 256
+    private const val SALT_BYTES = 16
 
     fun isPinSet(context: Context): Boolean {
         val hash = SecurePrefs.getPinHash(context)
@@ -19,10 +20,9 @@ object PinVault {
     }
 
     fun setPin(context: Context, pin: String) {
-        val salt = randomBytes(16)
-        val hash = deriveBase64(pin, salt, DEFAULT_ITERATIONS)
+        val salt = randomBytes(SALT_BYTES)
         SecurePrefs.setPinSalt(context, base64Encode(salt))
-        SecurePrefs.setPinHash(context, hash)
+        SecurePrefs.setPinHash(context, hashPin(pin, salt))
         SecurePrefs.setFailedAttempts(context, 0)
     }
 
@@ -30,9 +30,13 @@ object PinVault {
         val storedHash = SecurePrefs.getPinHash(context)
         val storedSalt = SecurePrefs.getPinSalt(context)
         if (storedHash.isNullOrEmpty() || storedSalt.isNullOrEmpty()) return false
+
         val salt = base64Decode(storedSalt)
-        val candidate = deriveBase64(pin, salt, DEFAULT_ITERATIONS)
-        return constantTimeEquals(storedHash, candidate)
+        val candidate = hashPin(pin, salt)
+        return MessageDigest.isEqual(
+            storedHash.toByteArray(Charsets.UTF_8),
+            candidate.toByteArray(Charsets.UTF_8)
+        )
     }
 
     fun clear(context: Context) {
@@ -41,8 +45,17 @@ object PinVault {
         SecurePrefs.setFailedAttempts(context, 0)
     }
 
-    fun deriveKey(password: String, salt: ByteArray, iterations: Int = DEFAULT_ITERATIONS): ByteArray {
-        val spec = PBEKeySpec(password.toCharArray(), salt, iterations, KEY_BITS)
+    private fun hashPin(pin: String, salt: ByteArray): String {
+        val key = deriveKey(pin, salt, ITERATIONS)
+        return base64Encode(key)
+    }
+
+    fun deriveKey(
+        password: String,
+        salt: ByteArray,
+        iterations: Int = ITERATIONS
+    ): ByteArray {
+        val spec = PBEKeySpec(password.toCharArray(), salt, iterations, KEY_LENGTH_BITS)
         return try {
             SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
                 .generateSecret(spec)
@@ -52,22 +65,15 @@ object PinVault {
         }
     }
 
-    private fun deriveBase64(password: String, salt: ByteArray, iterations: Int): String =
-        base64Encode(deriveKey(password, salt, iterations))
-
     fun randomBytes(size: Int): ByteArray {
-        val out = ByteArray(size)
-        SecureRandom().nextBytes(out)
-        return out
+        val bytes = ByteArray(size)
+        SecureRandom().nextBytes(bytes)
+        return bytes
     }
 
-    fun base64Encode(bytes: ByteArray): String = Base64.encodeToString(bytes, Base64.NO_WRAP)
+    fun base64Encode(bytes: ByteArray): String =
+        Base64.encodeToString(bytes, Base64.NO_WRAP)
 
-    fun base64Decode(value: String): ByteArray = Base64.decode(value, Base64.NO_WRAP)
-
-    private fun constantTimeEquals(a: String, b: String): Boolean {
-        val left = a.toByteArray(Charsets.UTF_8)
-        val right = b.toByteArray(Charsets.UTF_8)
-        return MessageDigest.isEqual(left, right)
-    }
+    fun base64Decode(value: String): ByteArray =
+        Base64.decode(value, Base64.NO_WRAP)
 }
