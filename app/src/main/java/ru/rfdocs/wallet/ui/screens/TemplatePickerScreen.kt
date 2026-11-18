@@ -11,16 +11,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,8 +38,8 @@ import ru.rfdocs.wallet.data.model.DocTemplate
 import ru.rfdocs.wallet.data.model.DocTemplates
 import ru.rfdocs.wallet.ui.components.SectionTitle
 import ru.rfdocs.wallet.ui.components.TypeBadge
-import ru.rfdocs.wallet.ui.theme.CardGradients
-import ru.rfdocs.wallet.ui.theme.DocIcons
+import ru.rfdocs.wallet.ui.components.documentIcon
+import ru.rfdocs.wallet.ui.theme.DocumentGradients
 import ru.rfdocs.wallet.ui.theme.WalletTheme
 
 @Composable
@@ -54,19 +52,17 @@ fun TemplatePickerScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
-            .statusBarsPadding()
-            .padding(horizontal = 20.dp)
-            .navigationBarsPadding()
+            .padding(horizontal = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             IconButton(onClick = onBack) {
                 Icon(
-                    imageVector = Icons.Rounded.ArrowBack,
-                    contentDescription = "Назад",
-                    tint = MaterialTheme.colorScheme.onSurface
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Назад"
                 )
             }
             Text(
@@ -77,7 +73,7 @@ fun TemplatePickerScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(Modifier.height(8.dp))
         Text(
             text = "Выберите тип документа — поля и маски ввода настроятся автоматически",
             style = MaterialTheme.typography.bodySmall,
@@ -86,22 +82,28 @@ fun TemplatePickerScreen(
 
         DocCategory.entries.forEach { category ->
             val templates = grouped[category] ?: return@forEach
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(Modifier.height(20.dp))
             SectionTitle(text = category.label)
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(Modifier.height(10.dp))
             templates.forEach { template ->
-                TemplateRow(template = template, onClick = { onPick(template.typeKey) })
-                Spacer(modifier = Modifier.height(10.dp))
+                TemplateRow(
+                    template = template,
+                    onClick = { onPick(template.key) }
+                )
+                Spacer(Modifier.height(10.dp))
             }
         }
 
-        Spacer(modifier = Modifier.height(36.dp))
+        Spacer(Modifier.height(32.dp))
     }
 }
 
 @Composable
-private fun TemplateRow(template: DocTemplate, onClick: () -> Unit) {
-    val gradient = CardGradients.of(template.gradientKey)
+private fun TemplateRow(
+    template: DocTemplate,
+    onClick: () -> Unit
+) {
+    val gradient = DocumentGradients.forType(template.key)
     val extras = WalletTheme.extra
     val haptics = LocalHapticFeedback.current
 
@@ -124,15 +126,17 @@ private fun TemplateRow(template: DocTemplate, onClick: () -> Unit) {
                 .size(42.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .background(
-                    androidx.compose.ui.graphics.Brush.linearGradient(
-                        listOf(gradient.start, gradient.middle, gradient.end)
-                    )
+                    androidx.compose.ui.graphics.Brush.linearGradient(gradient.colors)
                 )
-                .border(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.16f), RoundedCornerShape(14.dp)),
+                .border(
+                    width = 1.dp,
+                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.16f),
+                    shape = RoundedCornerShape(14.dp)
+                ),
             contentAlignment = Alignment.Center
         ) {
             TypeBadge(
-                icon = DocIcons.of(template.iconKey),
+                icon = documentIcon(template.key),
                 accent = gradient.accent,
                 size = 28.dp
             )
@@ -146,20 +150,22 @@ private fun TemplateRow(template: DocTemplate, onClick: () -> Unit) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(Modifier.height(2.dp))
             Text(
-                text = "Полей: ${template.fields.size}",
+                text = if (template.fields.isEmpty()) {
+                    "Произвольные поля"
+                } else {
+                    "Полей: ${template.fields.size}"
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
-        Box(modifier = Modifier.size(22.dp), contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = Icons.Rounded.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
