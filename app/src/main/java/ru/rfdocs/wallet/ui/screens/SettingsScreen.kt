@@ -45,7 +45,38 @@ import ru.rfdocs.wallet.ui.PinSetupScreen
 import ru.rfdocs.wallet.ui.WalletViewModel
 import ru.rfdocs.wallet.ui.components.SectionTitle
 import ru.rfdocs.wallet.ui.components.WalletBackground
-import ru.rfdocs.wallet.ui.theme.Palette
+
+@Composable
+private fun SwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Text(text = subtitle, style = MaterialTheme.typography.bodySmall)
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+    }
+}
+
+@Composable
+private fun NavRow(
+    title: String,
+    onClick: () -> Unit
+) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 14.dp)
+    )
+}
 
 @Composable
 fun SettingsScreen(
@@ -105,7 +136,7 @@ fun SettingsScreen(
     if (showPinChange) {
         PinSetupScreen(
             title = "Новый PIN-код",
-            subtitle = "Придумайте новый код для входа",
+            subtitle = "Придумайте новый код",
             onComplete = { pin ->
                 PinVault.setPin(context, pin)
                 showPinChange = false
@@ -146,8 +177,7 @@ fun SettingsScreen(
                 Text(
                     text = "Настройки",
                     style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onBackground
+                    fontWeight = FontWeight.SemiBold
                 )
             }
 
@@ -157,7 +187,7 @@ fun SettingsScreen(
 
             SwitchRow(
                 title = "Вход по отпечатку",
-                subtitle = if (biometricAvailable) "Быстрый вход" else "Отпечаток не настроен",
+                subtitle = if (biometricAvailable) "Быстрый вход" else "Не настроен",
                 checked = biometricEnabled,
                 enabled = biometricAvailable,
                 onCheckedChange = { value ->
@@ -169,7 +199,7 @@ fun SettingsScreen(
 
             SwitchRow(
                 title = "Запрет скриншотов",
-                subtitle = if (screenshotBlocked) "Снимки заблокированы" else "Снимки разрешены",
+                subtitle = if (screenshotBlocked) "Заблокировано" else "Разрешено",
                 checked = screenshotBlocked,
                 enabled = true,
                 onCheckedChange = { value ->
@@ -192,7 +222,7 @@ fun SettingsScreen(
 
             SwitchRow(
                 title = "Тёмная тема",
-                subtitle = "AMOLED-фон",
+                subtitle = "AMOLED",
                 checked = darkTheme,
                 enabled = true,
                 onCheckedChange = { value ->
@@ -247,41 +277,5 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(32.dp))
         }
-    }
-}
-
-@Composable
-private fun SwitchRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    enabled: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.titleMedium)
-            Text(text = subtitle, style = MaterialTheme.typography.labelMedium)
-        }
-        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
-    }
-}
-
-@Composable
-private fun NavRow(
-    title: String,
-    onClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(vertical = 14.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
     }
 }
