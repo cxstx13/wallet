@@ -2,7 +2,6 @@ package ru.rfdocs.wallet.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,11 +17,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -39,15 +38,16 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.text.KeyboardOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -57,6 +57,9 @@ import ru.rfdocs.wallet.data.model.DocTemplates
 import ru.rfdocs.wallet.data.repo.DocRepository
 import ru.rfdocs.wallet.data.repo.PhotoStore
 import ru.rfdocs.wallet.ui.WalletViewModel
+import ru.rfdocs.wallet.ui.components.PhotoThumbStrip
+import ru.rfdocs.wallet.ui.components.PhotoViewerDialog
+import ru.rfdocs.wallet.ui.components.SectionTitle
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,7 +71,7 @@ fun CardEditScreen(
     onBack: () -> Unit,
     onDone: (String) -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -92,21 +95,26 @@ fun CardEditScreen(
     val photoIds = remember(existing) {
         mutableStateListOf<String>().apply { addAll(existing?.photoIds ?: emptyList()) }
     }
+    var viewingPhoto by remember { mutableStateOf<String?>(null) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
-            val bytes = withContext(Dispatchers.IO) {
-                runCatching {
+            val saved = withContext(Dispatchers.IO) {
+                val bytes = runCatching {
                     context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 }.getOrNull()
+                if (bytes == null || bytes.isEmpty()) {
+                    null
+                } else {
+                    PhotoStore.save(context, bytes)
+                }
             }
-            if (bytes == null || bytes.isEmpty()) {
+            if (saved == null) {
                 snackbarHostState.showSnackbar("Не удалось прочитать фото")
-                return@launch
+            } else {
+                photoIds.add(saved)
             }
-            val saved = withContext(Dispatchers.IO) { PhotoStore.save(context, bytes) }
-            photoIds.add(saved)
         }
     }
 
@@ -129,6 +137,7 @@ fun CardEditScreen(
                 if (none { it.key == field.key }) add(field)
             }
         }
+
         val card = if (existing != null) {
             existing.copy(
                 title = title,
@@ -147,6 +156,7 @@ fun CardEditScreen(
                 updatedAt = now
             )
         }
+
         runCatching { DocRepository.upsert(card) }
             .onSuccess { onDone(card.id) }
             .onFailure { error ->
@@ -172,7 +182,10 @@ fun CardEditScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Назад"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -209,7 +222,7 @@ fun CardEditScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentAlignment = Alignment.Center
+                contentAlignment = androidx.compose.ui.Alignment.Center
             ) {
                 Text("Шаблон документа не найден")
             }
@@ -252,17 +265,24 @@ fun CardEditScreen(
             }
 
             Spacer(Modifier.height(4.dp))
+            SectionTitle(text = "Фото документа")
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "Сфотографируйте документ и заполните поля вручную — фото хранится в зашифрованном виде.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
             ) {
                 Button(
                     onClick = { picker.launch("image/*") },
                     shape = RoundedCornerShape(14.dp)
                 ) {
                     Icon(
-                        Icons.Filled.AddPhotoAlternate,
+                        imageVector = Icons.Filled.Add,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -271,41 +291,31 @@ fun CardEditScreen(
                 }
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    text = if (photoIds.isEmpty()) "Фото не добавлены" else "Фото: ${photoIds.size}",
+                    text = if (photoIds.isEmpty()) "Нет фото" else "Фото: ${photoIds.size}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            photoIds.forEach { photoId ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Фото ${photoId.take(8)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.weight(1f),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    IconButton(onClick = { photoIds.remove(photoId) }) {
-                        Icon(
-                            Icons.Filled.Close,
-                            contentDescription = "Удалить фото",
-                            tint = Color(0xFFE05252)
-                        )
-                    }
-                }
-            }
+            PhotoThumbStrip(
+                photoIds = photoIds.toList(),
+                onOpen = { photoId -> viewingPhoto = photoId },
+                onRemove = { photoId -> photoIds.remove(photoId) }
+            )
 
             Spacer(Modifier.height(16.dp))
         }
+    }
+
+    viewingPhoto?.let { photoId ->
+        PhotoViewerDialog(
+            photoId = photoId,
+            onDismiss = { viewingPhoto = null },
+            onDelete = { removed ->
+                photoIds.remove(removed)
+                viewingPhoto = null
+            }
+        )
     }
 }
 
