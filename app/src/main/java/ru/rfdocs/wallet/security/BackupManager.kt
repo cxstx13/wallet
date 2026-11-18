@@ -41,10 +41,15 @@ object BackupManager {
         return try {
             require(password.length >= 6) { "Пароль должен быть не короче 6 символов" }
 
-            val cardCount = DocRepository.cards.value.size
+            val cardsJson = String(DocRepository.exportCardsJson(), Charsets.UTF_8)
+                .trim()
+            require(cardsJson.length > 2) { "Нет документов для экспорта" }
+
+            val cardCount = runCatching {
+                json.decodeFromString(cardsSerializer, cardsJson).size
+            }.getOrDefault(0)
             require(cardCount > 0) { "Нет документов для экспорта" }
 
-            val cardsJson = String(DocRepository.exportCardsJson(), Charsets.UTF_8)
             val photos = PhotoStore.exportAll(context).mapValues { entry ->
                 PinVault.base64Encode(entry.value)
             }
@@ -65,15 +70,15 @@ object BackupManager {
             buffer.write(iv.size)
             buffer.write(iv)
             buffer.write(encrypted)
+            buffer.flush()
             val bytes = buffer.toByteArray()
+            buffer.close()
 
-            val stream = context.contentResolver.openOutputStream(uri)
-                ?: return Result.failure(IllegalStateException("Не удалось открыть файл для записи"))
-
-            stream.use { output ->
-                output.write(bytes)
-                output.flush()
+            require(bytes.size > HEADER.length + SALT_SIZE + MIN_IV_SIZE) {
+                "Внутренняя ошибка формирования файла"
             }
+
+            writeVerified(context, uri, bytes)
 
             Result.success(cardCount)
         } catch (error: Throwable) {
@@ -86,6 +91,8 @@ object BackupManager {
             val bytes = context.contentResolver.openInputStream(uri)?.use { input ->
                 input.readBytes()
             } ?: return Result.failure(IllegalStateException("Не удалось прочитать файл"))
+
+            require(bytes.isNotEmpty()) { "Файл пустой (0 байт)" }
 
             val header = HEADER.toByteArray(Charsets.US_ASCII)
             require(bytes.size > header.size + SALT_SIZE + 1 + MIN_IV_SIZE) {
@@ -126,9 +133,13 @@ object BackupManager {
                 String(plain, Charsets.UTF_8)
             )
 
-            val restored = DocRepository.importCardsJson(payload.cardsJson.toByteArray(Charsets.UTF_8))
-            if (restored < 0) {
-                return Result.failure(IllegalStateException("Не удалось прочитать документы из бэкапа"))
+            val restored = DocRepository.importCardsJson(
+                payload.cardsJson.toByteArray(Charsets.UTF_8)
+            )
+            if (restored <= 0) {
+                return Result.failure(
+                    IllegalStateException("В бэкапе нет документов или он повреждён")
+                )
             }
 
             val photos: Map<String, ByteArray> = payload.photos.mapValues { entry ->
@@ -139,6 +150,26 @@ object BackupManager {
             Result.success(restored)
         } catch (error: Throwable) {
             Result.failure(IllegalStateException(error.message ?: "Ошибка импорта", error))
+        }
+    }
+
+    private fun writeVerified(context: Context, uri: Uri, bytes: ByteArray) {
+        val stream = context.contentResolver.openOutputStream(uri, "wt")
+            ?: context.contentResolver.openOutputStream(uri)
+            ?: error("Провайдер файлов недоступен для записи")
+
+        stream.use { output ->
+            output.write(bytes)
+            output.flush()
+            runCatching { (output as? java.io.FileOutputStream)?.fd?.sync() }
+        }
+
+        val written = context.contentResolver.openInputStream(uri)?.use { input ->
+            input.readBytes().size
+        } ?: -1
+
+        if (written != bytes.size) {
+            error("Файл записался не полностью ($written из ${bytes.size} байт)")
         }
     }
 
