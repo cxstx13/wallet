@@ -15,6 +15,7 @@ object SecurePrefs {
     private const val KEY_DARK_THEME = "dark_theme"
     private const val KEY_FAILED_ATTEMPTS = "failed_attempts"
     private const val KEY_ONBOARDED = "onboarded"
+    private const val KEY_BLOCK_SCREENSHOTS = "block_screenshots"
 
     @Volatile
     private var cached: SharedPreferences? = null
@@ -60,6 +61,13 @@ object SecurePrefs {
 
     fun setBiometricEnabled(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_BIOMETRIC, enabled).apply()
+    }
+
+    fun isScreenshotBlocked(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_BLOCK_SCREENSHOTS, true)
+
+    fun setScreenshotBlocked(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_BLOCK_SCREENSHOTS, enabled).apply()
     }
 
     fun darkTheme(context: Context): Boolean? {
