@@ -51,6 +51,26 @@ fun fieldDisplayValue(field: DocField): String {
     return if (mask.isNullOrBlank()) field.value else FieldMasks.display(field.value, mask)
 }
 
+fun fieldValidationError(field: DocField): String? {
+    val mask = field.mask ?: return null
+    if (mask == Masks.DATE) {
+        val error = DateMask.error(field.value)
+        if (error != null) return error
+        if (field.value.isNotBlank() && digitsOnly(field.value).length < DateMask.DIGITS) {
+            return "Введите дату полностью: дд.мм.гггг"
+        }
+        return null
+    }
+    if (field.value.isNotBlank()) {
+        val required = digitCount(mask)
+        val actual = digitsOnly(field.value).length
+        if (actual > 0 && actual < required) {
+            return "Нужно цифр: $required"
+        }
+    }
+    return null
+}
+
 @Composable
 fun FieldLabel(text: String, modifier: Modifier = Modifier) {
     Text(
@@ -65,10 +85,13 @@ fun FieldLabel(text: String, modifier: Modifier = Modifier) {
 fun WalletField(
     label: String,
     modifier: Modifier = Modifier,
+    errorText: String? = null,
     trailing: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
     val extras = WalletTheme.extra
+    val borderColor = if (errorText != null) Palette.Danger else extras.fieldStroke
+
     Column(modifier = modifier.fillMaxWidth()) {
         FieldLabel(text = label)
         Spacer(Modifier.height(6.dp))
@@ -77,7 +100,7 @@ fun WalletField(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(14.dp))
                 .background(extras.fieldFill)
-                .border(1.dp, extras.fieldStroke, RoundedCornerShape(14.dp))
+                .border(1.dp, borderColor, RoundedCornerShape(14.dp))
                 .padding(
                     start = 14.dp,
                     end = if (trailing != null) 4.dp else 14.dp,
@@ -92,6 +115,14 @@ fun WalletField(
             if (trailing != null) {
                 trailing()
             }
+        }
+        if (errorText != null) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = errorText,
+                style = MaterialTheme.typography.labelSmall,
+                color = Palette.Danger
+            )
         }
     }
 }
@@ -176,7 +207,8 @@ private fun DatePickerButton(
 fun DocFieldEditor(
     field: DocField,
     onFieldChange: (DocField) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    externalError: String? = null
 ) {
     val mask = field.mask
     val isDate = mask == Masks.DATE
@@ -195,6 +227,9 @@ fun DocFieldEditor(
         }
     }
 
+    val internalError = remember(field.value, mask) { fieldValidationError(field) }
+    val shownError = externalError ?: internalError
+
     val keyboardType = if (isDate || isPhone || isMasked) {
         KeyboardType.Number
     } else {
@@ -204,6 +239,7 @@ fun DocFieldEditor(
     WalletField(
         label = field.label,
         modifier = modifier,
+        errorText = shownError,
         trailing = if (isDate) {
             {
                 DatePickerButton(currentDigits = field.value) { digits ->
@@ -215,9 +251,9 @@ fun DocFieldEditor(
         }
     ) {
         SoftTextField(
-            value = digitsOnly(field.value).take(maxDigits),
+            value = field.value.filter { it.isDigit() }.take(maxDigits),
             onValueChange = { raw ->
-                onFieldChange(field.copy(value = digitsOnly(raw).take(maxDigits)))
+                onFieldChange(field.copy(value = raw.filter { it.isDigit() }.take(maxDigits)))
             },
             placeholder = when {
                 isDate -> "дд.мм.гггг"
