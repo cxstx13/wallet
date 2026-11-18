@@ -1,396 +1,245 @@
 package ru.rfdocs.wallet.data.model
 
-@kotlinx.serialization.Serializable
+import kotlinx.serialization.Serializable
+import ru.rfdocs.wallet.ui.input.Masks
+
+@Serializable
+data class FieldSpec(
+    val key: String,
+    val label: String,
+    val mask: String? = null,
+    val secret: Boolean = false,
+    val phone: Boolean = false
+)
+
+@Serializable
 data class DocTemplate(
-    val typeKey: String,
+    val key: String,
     val title: String,
     val category: DocCategory,
-    val gradientKey: String,
-    val iconKey: String,
-    val fields: List<DocField>
+    val fields: List<FieldSpec>
 )
 
 object DocTemplates {
 
-    private fun text(
+    private fun text(key: String, label: String): FieldSpec =
+        FieldSpec(key = key, label = label)
+
+    private fun date(key: String, label: String): FieldSpec =
+        FieldSpec(key = key, label = label, mask = Masks.DATE)
+
+    private fun phone(key: String, label: String): FieldSpec =
+        FieldSpec(key = key, label = label, mask = Masks.PHONE, phone = true)
+
+    private fun masked(
+        key: String,
         label: String,
-        placeholder: String = "",
-        capitalizeWords: Boolean = false
-    ): DocField = DocField(
-        label = label,
-        kind = FieldKind.TEXT,
-        placeholder = placeholder,
-        capitalizeWords = capitalizeWords
-    )
+        mask: String
+    ): FieldSpec = FieldSpec(key = key, label = label, mask = mask, secret = true)
 
-    private fun multiline(label: String, placeholder: String = ""): DocField = DocField(
-        label = label,
-        kind = FieldKind.MULTILINE,
-        multiline = true,
-        placeholder = placeholder
-    )
-
-    private fun date(label: String): DocField = DocField(
-        label = label,
-        kind = FieldKind.DATE,
-        placeholder = "дд.мм.гггг"
-    )
-
-    private fun phone(label: String): DocField = DocField(
-        label = label,
-        kind = FieldKind.PHONE,
-        placeholder = "+7 (___) ___-__-__"
-    )
-
-    private fun maskedNumber(
-        label: String,
-        pattern: String,
-        placeholder: String = ""
-    ): DocField = DocField(
-        label = label,
-        kind = FieldKind.MASKED_NUMBER,
-        pattern = pattern,
-        masked = true,
-        mono = true,
-        placeholder = placeholder
-    )
-
-    private fun gender(): DocField = DocField(
-        label = "Пол",
-        kind = FieldKind.GENDER,
-        options = listOf("Мужской", "Женский")
-    )
-
-    private fun surname(): DocField = text("Фамилия", "Иванов", capitalizeWords = true)
-
-    private fun name(): DocField = text("Имя", "Иван", capitalizeWords = true)
-
-    private fun patronymic(): DocField = text("Отчество (при наличии)", "Иванович", capitalizeWords = true)
-
-    private fun nameLatin(label: String, placeholder: String): DocField = DocField(
-        label = label,
-        kind = FieldKind.TEXT,
-        placeholder = placeholder,
-        capitalizeWords = true
-    )
+    private val surname = text("surname", "Фамилия")
+    private val name = text("name", "Имя")
+    private val patronymic = text("patronymic", "Отчество (при наличии)")
 
     val passport: DocTemplate = DocTemplate(
-        typeKey = "PASSPORT_RF",
+        key = "PASSPORT_RF",
         title = "Паспорт РФ",
         category = DocCategory.IDENTITY,
-        gradientKey = GradientKeys.RUBY,
-        iconKey = IconKeys.PASSPORT,
         fields = listOf(
-            surname(),
-            name(),
-            patronymic(),
-            gender(),
-            date("Дата рождения"),
-            text("Место рождения", "г. Москва", capitalizeWords = true),
-            maskedNumber("Серия и номер", "0000 000000", "0000 000000"),
-            text("Кем выдан", "ГУ МВД России по г. Москве"),
-            date("Дата выдачи"),
-            DocField(
-                label = "Код подразделения",
-                kind = FieldKind.MASKED_NUMBER,
-                pattern = "000-000",
-                mono = true,
-                placeholder = "000-000"
-            ),
-            multiline("Прописка", "г. Москва, ул. Примерная, д. 1, кв. 1")
+            surname,
+            name,
+            patronymic,
+            text("gender", "Пол"),
+            date("birth_date", "Дата рождения"),
+            text("birth_place", "Место рождения"),
+            masked("number", "Серия и номер", Masks.PASSPORT),
+            text("issued_by", "Кем выдан"),
+            date("issue_date", "Дата выдачи"),
+            FieldSpec("department", "Код подразделения", mask = Masks.DEPARTMENT),
+            text("address", "Адрес регистрации")
         )
     )
 
     val zagran: DocTemplate = DocTemplate(
-        typeKey = "ZAGRAN",
+        key = "ZAGRAN",
         title = "Загранпаспорт",
         category = DocCategory.IDENTITY,
-        gradientKey = GradientKeys.SAPPHIRE,
-        iconKey = IconKeys.GLOBE,
         fields = listOf(
-            surname(),
-            name(),
-            patronymic(),
-            nameLatin("ФИО латиницей", "IVANOV IVAN"),
-            maskedNumber("Серия и номер", "00 0000000", "00 0000000"),
-            date("Дата выдачи"),
-            date("Действителен до"),
-            DocField(
-                label = "Орган выдачи",
-                kind = FieldKind.MASKED_NUMBER,
-                pattern = "000000",
-                mono = true,
-                placeholder = "000000"
-            )
+            surname,
+            name,
+            text("latin_name", "ФИО латиницей"),
+            masked("number", "Серия и номер", "00 0000000"),
+            date("issue_date", "Дата выдачи"),
+            date("valid_until", "Действителен до"),
+            text("issued_by", "Орган выдачи")
         )
     )
 
     val snils: DocTemplate = DocTemplate(
-        typeKey = "SNILS",
+        key = "SNILS",
         title = "СНИЛС",
         category = DocCategory.IDENTITY,
-        gradientKey = GradientKeys.EMERALD,
-        iconKey = IconKeys.SNILS,
         fields = listOf(
-            surname(),
-            name(),
-            patronymic(),
-            date("Дата рождения"),
-            maskedNumber("Номер СНИЛС", "000-000-000 00", "000-000-000 00")
+            surname,
+            name,
+            patronymic,
+            masked("number", "Номер СНИЛС", Masks.SNILS),
+            date("birth_date", "Дата рождения")
         )
     )
 
     val inn: DocTemplate = DocTemplate(
-        typeKey = "INN",
+        key = "INN",
         title = "ИНН",
         category = DocCategory.IDENTITY,
-        gradientKey = GradientKeys.GRAPHITE,
-        iconKey = IconKeys.INN,
         fields = listOf(
-            surname(),
-            name(),
-            patronymic(),
-            maskedNumber("ИНН", "000000000000", "12 цифр"),
-            date("Дата постановки на учёт"),
-            DocField(
-                label = "Код ФНС",
-                kind = FieldKind.MASKED_NUMBER,
-                pattern = "0000",
-                mono = true,
-                placeholder = "7700"
-            )
+            surname,
+            name,
+            patronymic,
+            masked("number", "ИНН", Masks.INN),
+            date("issue_date", "Дата постановки на учёт"),
+            FieldSpec("fns_code", "Код ФНС", mask = "0000")
         )
     )
 
     val driver: DocTemplate = DocTemplate(
-        typeKey = "DRIVER",
+        key = "DRIVER",
         title = "Водительское удостоверение",
         category = DocCategory.AUTO,
-        gradientKey = GradientKeys.ANTHRACITE,
-        iconKey = IconKeys.DRIVER,
         fields = listOf(
-            surname(),
-            name(),
-            patronymic(),
-            date("Дата рождения"),
-            maskedNumber("Серия и номер", "00 00 000000", "00 00 000000"),
-            date("Дата выдачи"),
-            date("Действительно до"),
-            text("Кем выдан", "ГИБДД 7701"),
-            DocField(
-                label = "Категории",
-                kind = FieldKind.CHIPS,
-                options = listOf(
-                    "A", "A1", "B", "B1", "C", "C1", "D", "D1",
-                    "BE", "CE", "DE", "M"
-                )
-            ),
-            text("Стаж", "с 2010 года")
+            surname,
+            name,
+            patronymic,
+            date("birth_date", "Дата рождения"),
+            masked("number", "Серия и номер", Masks.VEHICLE),
+            date("issue_date", "Дата выдачи"),
+            date("valid_until", "Действителен до"),
+            text("issued_by", "Кем выдан"),
+            text("categories", "Категории"),
+            text("experience", "Стаж")
         )
     )
 
     val sts: DocTemplate = DocTemplate(
-        typeKey = "STS",
+        key = "STS",
         title = "СТС",
         category = DocCategory.AUTO,
-        gradientKey = GradientKeys.ANTHRACITE,
-        iconKey = IconKeys.CAR,
         fields = listOf(
-            DocField(
-                label = "Госномер",
-                kind = FieldKind.TEXT,
-                mono = true,
-                placeholder = "А000АА000",
-                capitalizeWords = true
-            ),
-            DocField(
-                label = "VIN",
-                kind = FieldKind.MASKED_NUMBER,
-                pattern = "00000000000000000",
-                masked = true,
-                mono = true,
-                placeholder = "17 символов"
-            ),
-            text("Марка и модель", "Lada Vesta"),
-            maskedNumber("Серия и номер", "00 00 000000", "00 00 000000"),
-            text("Год выпуска", "2020"),
-            date("Дата выдачи"),
-            text("Собственник", "Иванов Иван Иванович", capitalizeWords = true)
+            text("plate", "Госномер"),
+            masked("vin", "VIN", Masks.VEHICLE),
+            text("model", "Марка и модель"),
+            text("year", "Год выпуска"),
+            masked("number", "Серия и номер", Masks.VEHICLE),
+            date("issue_date", "Дата выдачи"),
+            text("owner", "Собственник")
         )
     )
 
     val pts: DocTemplate = DocTemplate(
-        typeKey = "PTS",
+        key = "PTS",
         title = "ПТС / ЭПТС",
         category = DocCategory.AUTO,
-        gradientKey = GradientKeys.ANTHRACITE,
-        iconKey = IconKeys.VIN,
         fields = listOf(
-            maskedNumber("Номер ПТС / ЭПТС", "00 00 000000", "00 00 000000"),
-            DocField(
-                label = "VIN",
-                kind = FieldKind.MASKED_NUMBER,
-                pattern = "00000000000000000",
-                masked = true,
-                mono = true,
-                placeholder = "17 символов"
-            ),
-            text("Марка и модель", "Lada Vesta"),
-            DocField(
-                label = "Двигатель",
-                kind = FieldKind.MASKED_NUMBER,
-                pattern = "0000000",
-                mono = true,
-                placeholder = "0000000"
-            ),
-            DocField(
-                label = "Кузов / шасси",
-                kind = FieldKind.MASKED_NUMBER,
-                pattern = "0000000",
-                mono = true,
-                placeholder = "0000000"
-            ),
-            text("Мощность, л.с.", "106"),
-            date("Дата выдачи"),
-            text("Собственник", "Иванов Иван Иванович", capitalizeWords = true)
+            masked("number", "Номер ПТС / ЭПТС", Masks.VEHICLE),
+            masked("vin", "VIN", Masks.VEHICLE),
+            text("model", "Марка и модель"),
+            text("engine", "Двигатель"),
+            text("power", "Мощность, л.с."),
+            date("issue_date", "Дата выдачи"),
+            text("owner", "Собственник")
         )
     )
 
-    private fun policy(typeKey: String, title: String, gradient: String, icon: String): DocTemplate =
-        DocTemplate(
-            typeKey = typeKey,
-            title = title,
-            category = DocCategory.AUTO,
-            gradientKey = gradient,
-            iconKey = icon,
-            fields = listOf(
-                text("Страховая компания", "Название страховой"),
-                maskedNumber("Серия и номер", "000 0000000", "000 0000000"),
-                date("Действует с"),
-                date("Действует по"),
-                phone("Телефон страховой")
-            )
-        )
-
-    val osago: DocTemplate = policy(
-        typeKey = "OSAGO",
+    val osago: DocTemplate = DocTemplate(
+        key = "OSAGO",
         title = "ОСАГО",
-        gradient = GradientKeys.INDIGO,
-        icon = IconKeys.SHIELD
+        category = DocCategory.AUTO,
+        fields = listOf(
+            text("insurer", "Страховая компания"),
+            masked("number", "Серия и номер", "000 0000000"),
+            date("valid_from", "Действует с"),
+            date("valid_until", "Действует по"),
+            phone("insurer_phone", "Телефон страховой")
+        )
     )
 
-    val kasko: DocTemplate = policy(
-        typeKey = "KASKO",
+    val kasko: DocTemplate = DocTemplate(
+        key = "KASKO",
         title = "КАСКО",
-        gradient = GradientKeys.VIOLET,
-        icon = IconKeys.SHIELD_PLUS
+        category = DocCategory.AUTO,
+        fields = listOf(
+            text("insurer", "Страховая компания"),
+            masked("number", "Серия и номер", "000 0000000"),
+            date("valid_from", "Действует с"),
+            date("valid_until", "Действует по"),
+            phone("insurer_phone", "Телефон страховой")
+        )
     )
 
     val oms: DocTemplate = DocTemplate(
-        typeKey = "OMS",
+        key = "OMS",
         title = "Полис ОМС",
         category = DocCategory.MEDICINE,
-        gradientKey = GradientKeys.TURQUOISE,
-        iconKey = IconKeys.MEDICAL,
         fields = listOf(
-            surname(),
-            name(),
-            patronymic(),
-            date("Дата рождения"),
-            maskedNumber("ЕНП (номер полиса)", "0000 0000 0000 0000", "16 цифр"),
-            text("Страховая компания", "Страховая медицинская компания")
+            surname,
+            name,
+            patronymic,
+            date("birth_date", "Дата рождения"),
+            masked("number", "ЕНП (номер полиса)", Masks.OMS),
+            text("insurer", "Страховая компания")
         )
     )
 
     val dms: DocTemplate = DocTemplate(
-        typeKey = "DMS",
+        key = "DMS",
         title = "ДМС / турстраховка",
         category = DocCategory.MEDICINE,
-        gradientKey = GradientKeys.TEAL,
-        iconKey = IconKeys.MEDICAL_PLUS,
         fields = listOf(
-            text("Страховая компания", "Страховая компания"),
-            maskedNumber("Номер полиса", "00000000000", "номер полиса"),
-            date("Действует с"),
-            date("Действует по"),
-            phone("Телефон ассистанса")
+            text("insurer", "Страховая компания"),
+            masked("number", "Номер полиса", "00000000000"),
+            date("valid_from", "Действует с"),
+            date("valid_until", "Действует по"),
+            phone("assistance_phone", "Телефон ассистанса")
         )
     )
 
     val birth: DocTemplate = DocTemplate(
-        typeKey = "BIRTH",
+        key = "BIRTH",
         title = "Свидетельство о рождении",
         category = DocCategory.FAMILY,
-        gradientKey = GradientKeys.TERRACOTTA,
-        iconKey = IconKeys.BABY,
         fields = listOf(
-            surname(),
-            name(),
-            patronymic(),
-            date("Дата рождения"),
-            text("Место рождения", "г. Москва", capitalizeWords = true),
-            maskedNumber("Серия и номер", "00 000000", "00 000000"),
-            date("Дата выдачи"),
-            text("ЗАГС", "Московский отдел ЗАГС"),
-            multiline("Родители", "Иванов Иван Иванович, Иванова Мария Петровна")
+            surname,
+            name,
+            patronymic,
+            date("birth_date", "Дата рождения"),
+            text("birth_place", "Место рождения"),
+            masked("number", "Серия и номер", "00 000000"),
+            date("issue_date", "Дата выдачи"),
+            text("registry_office", "ЗАГС"),
+            text("parents", "Родители")
         )
     )
 
     val bank: DocTemplate = DocTemplate(
-        typeKey = "BANK",
+        key = "BANK",
         title = "Банковские реквизиты",
         category = DocCategory.OTHER,
-        gradientKey = GradientKeys.BRONZE,
-        iconKey = IconKeys.BANK,
         fields = listOf(
-            text("Банк", "Наименование банка"),
-            DocField(
-                label = "БИК",
-                kind = FieldKind.MASKED_NUMBER,
-                pattern = "000000000",
-                mono = true,
-                placeholder = "9 цифр"
-            ),
-            maskedNumber("Расчётный счёт", "0000 0000 0000 0000 0000", "20 цифр"),
-            maskedNumber("Корр. счёт", "0000 0000 0000 0000 0000", "20 цифр"),
-            DocField(
-                label = "ИНН банка",
-                kind = FieldKind.MASKED_NUMBER,
-                pattern = "0000000000",
-                mono = true,
-                placeholder = "10 цифр"
-            ),
-            DocField(
-                label = "КПП",
-                kind = FieldKind.MASKED_NUMBER,
-                pattern = "0000 00",
-                mono = true,
-                placeholder = "0000 00"
-            ),
-            text("Получатель", "Иванов Иван Иванович", capitalizeWords = true)
+            text("bank", "Банк"),
+            FieldSpec("bik", "БИК", mask = "000000000"),
+            masked("account", "Расчётный счёт", Masks.ACCOUNT),
+            masked("corr_account", "Корр. счёт", Masks.ACCOUNT),
+            FieldSpec("inn", "ИНН", mask = Masks.INN),
+            FieldSpec("kpp", "КПП", mask = "000000000"),
+            text("recipient", "Получатель")
         )
     )
 
     val custom: DocTemplate = DocTemplate(
-        typeKey = "CUSTOM",
+        key = "CUSTOM",
         title = "Своя карточка",
         category = DocCategory.OTHER,
-        gradientKey = GradientKeys.OBSIDIAN,
-        iconKey = IconKeys.STAR,
-        fields = listOf(
-            DocField(
-                label = "Поле 1",
-                kind = FieldKind.TEXT,
-                placeholder = "Значение",
-                editableLabel = true
-            ),
-            DocField(
-                label = "Поле 2",
-                kind = FieldKind.TEXT,
-                placeholder = "Значение",
-                editableLabel = true
-            )
-        )
+        fields = emptyList()
     )
 
     val all: List<DocTemplate> = listOf(
@@ -399,18 +248,31 @@ object DocTemplates {
         oms, dms, birth, bank, custom
     )
 
-    fun byKey(typeKey: String): DocTemplate? = all.firstOrNull { it.typeKey == typeKey }
+    fun byKey(typeKey: String): DocTemplate? {
+        if (typeKey.isBlank()) return null
+        val normalized = typeKey.lowercase()
+        all.firstOrNull { it.key.equals(typeKey, ignoreCase = true) }?.let { return it }
 
-    fun createCard(typeKey: String): DocCard? {
-        val template = byKey(typeKey) ?: return null
-        return DocCard(
-            typeKey = template.typeKey,
-            title = template.title,
-            subtitle = template.category.label,
-            category = template.category,
-            gradientKey = template.gradientKey,
-            iconKey = template.iconKey,
-            fields = template.fields.map { it.copy(id = java.util.UUID.randomUUID().toString()) }
-        )
+        return when {
+            normalized.contains("foreign") || normalized.contains("zagran") -> zagran
+            normalized.contains("passport") -> passport
+            normalized.contains("snils") -> snils
+            normalized.contains("inn") -> inn
+            normalized.contains("driver") || normalized.contains("vu") -> driver
+            normalized.contains("sts") -> sts
+            normalized.contains("pts") -> pts
+            normalized.contains("osago") -> osago
+            normalized.contains("kasko") -> kasko
+            normalized.contains("oms") -> oms
+            normalized.contains("dms") -> dms
+            normalized.contains("birth") -> birth
+            normalized.contains("bank") -> bank
+            normalized.contains("custom") -> custom
+            else -> null
+        }
     }
+
+    fun keyOf(typeKey: String): String = byKey(typeKey)?.key ?: typeKey
+
+    fun titleOf(typeKey: String): String = byKey(typeKey)?.title ?: "Документ"
 }
