@@ -115,8 +115,7 @@ fun AboutScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(10.dp))
             GlassPanel(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Приложение — личный справочник реквизитов. Оно не является официальным " +
-                        "документом и не заменяет бумажный или государственный цифровой документ.",
+                    text = "Приложение — личный справочник реквизитов. Оно не является официальным документом и не заменяет бумажный или государственный цифровой.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
