@@ -6,10 +6,10 @@ import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,6 +45,7 @@ import ru.rfdocs.wallet.ui.PinSetupScreen
 import ru.rfdocs.wallet.ui.WalletViewModel
 import ru.rfdocs.wallet.ui.components.SectionTitle
 import ru.rfdocs.wallet.ui.components.WalletBackground
+import ru.rfdocs.wallet.ui.theme.Palette
 
 @Composable
 fun SettingsScreen(
@@ -126,10 +128,10 @@ fun SettingsScreen(
     WalletBackground {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .statusBarsPadding()
-                .padding(horizontal = 16.dp)
+                .padding(16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -149,17 +151,13 @@ fun SettingsScreen(
                 )
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(16.dp))
             SectionTitle(text = "Безопасность")
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
 
-            SettingsSwitchRow(
+            SwitchRow(
                 title = "Вход по отпечатку",
-                subtitle = if (biometricAvailable) {
-                    "Быстрый вход вместо ввода PIN-кода"
-                } else {
-                    "Отпечаток не настроен на устройстве"
-                },
+                subtitle = if (biometricAvailable) "Быстрый вход" else "Отпечаток не настроен",
                 checked = biometricEnabled,
                 enabled = biometricAvailable,
                 onCheckedChange = { value ->
@@ -169,14 +167,9 @@ fun SettingsScreen(
                 }
             )
 
-            Spacer(Modifier.height(10.dp))
-            SettingsSwitchRow(
+            SwitchRow(
                 title = "Запрет скриншотов",
-                subtitle = if (screenshotBlocked) {
-                    "Снимки экрана блокируются"
-                } else {
-                    "Снимки экрана разрешены"
-                },
+                subtitle = if (screenshotBlocked) "Снимки заблокированы" else "Снимки разрешены",
                 checked = screenshotBlocked,
                 enabled = true,
                 onCheckedChange = { value ->
@@ -185,8 +178,7 @@ fun SettingsScreen(
                 }
             )
 
-            Spacer(Modifier.height(10.dp))
-            SettingsNavRow(
+            NavRow(
                 title = "Сменить PIN-код",
                 onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -194,10 +186,11 @@ fun SettingsScreen(
                 }
             )
 
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(20.dp))
             SectionTitle(text = "Оформление")
-            Spacer(Modifier.height(10.dp))
-            SettingsSwitchRow(
+            Spacer(Modifier.height(8.dp))
+
+            SwitchRow(
                 title = "Тёмная тема",
                 subtitle = "AMOLED-фон",
                 checked = darkTheme,
@@ -208,36 +201,35 @@ fun SettingsScreen(
                 }
             )
 
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(20.dp))
             SectionTitle(text = "Резервная копия")
-            Spacer(Modifier.height(10.dp))
-            SettingsNavRow(
+            Spacer(Modifier.height(8.dp))
+
+            NavRow(
                 title = "Экспорт бэкапа",
-                subtitle = "Файл, защищённый паролем",
                 onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     if (DocRepository.cardCount() == 0) {
-                        Toast.makeText(context, "Нет документов для экспорта", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Нет документов", Toast.LENGTH_SHORT).show()
                     } else {
                         exportLauncher.launch(BackupManager.suggestedFileName())
                     }
                 }
             )
 
-            Spacer(Modifier.height(10.dp))
-            SettingsNavRow(
+            NavRow(
                 title = "Импорт из бэкапа",
-                subtitle = "Заменит текущие документы",
                 onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     importLauncher.launch(arrayOf("application/octet-stream", "*/*"))
                 }
             )
 
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(20.dp))
             SectionTitle(text = "Прочее")
-            Spacer(Modifier.height(10.dp))
-            SettingsNavRow(
+            Spacer(Modifier.height(8.dp))
+
+            NavRow(
                 title = "О приложении",
                 onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -245,11 +237,8 @@ fun SettingsScreen(
                 }
             )
 
-            Spacer(Modifier.height(10.dp))
-            SettingsNavRow(
+            NavRow(
                 title = "Удалить все документы",
-                subtitle = "Безвозвратно, только на этом устройстве",
-                danger = true,
                 onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     showWipe = true
@@ -258,5 +247,41 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(32.dp))
         }
+    }
+}
+
+@Composable
+private fun SwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Text(text = subtitle, style = MaterialTheme.typography.labelMedium)
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+    }
+}
+
+@Composable
+private fun NavRow(
+    title: String,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 14.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
