@@ -1,10 +1,7 @@
 package ru.rfdocs.wallet.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
-import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -38,43 +34,39 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import ru.rfdocs.wallet.data.model.DocCard
 import ru.rfdocs.wallet.data.model.DocCategory
 import ru.rfdocs.wallet.data.repo.DocRepository
 import ru.rfdocs.wallet.ui.components.CategoryChips
+import ru.rfdocs.wallet.ui.components.DocumentStyleCard
 import ru.rfdocs.wallet.ui.components.GlassPanel
-import ru.rfdocs.wallet.ui.components.PlasticCard
+import ru.rfdocs.wallet.ui.components.WalletBackground
 import ru.rfdocs.wallet.ui.components.WalletSearchField
-import ru.rfdocs.wallet.ui.theme.DocumentGradients
 import ru.rfdocs.wallet.ui.theme.Palette
 import ru.rfdocs.wallet.ui.theme.WalletTheme
 
 private fun categoryOf(card: DocCard): DocCategory {
     val key = card.typeKey.lowercase()
     return when {
-        key.contains("osago") || key.contains("kasko") ||
-            key.contains("oms") || key.contains("dms") -> DocCategory.MEDICINE
-        key.contains("driver") || key.contains("vu") || key.contains("sts") ||
-            key.contains("pts") -> DocCategory.AUTO
-        key.contains("birth") || key.contains("family") -> DocCategory.FAMILY
-        key.contains("passport") || key.contains("zagran") ||
-            key.contains("snils") || key.contains("inn") -> DocCategory.IDENTITY
+        key.contains("osago") || key.contains("kasko") -> DocCategory.MEDICINE
+        key.contains("oms") || key.contains("dms") -> DocCategory.MEDICINE
+        key.contains("driver") || key.contains("vu") -> DocCategory.AUTO
+        key.contains("sts") || key.contains("pts") -> DocCategory.AUTO
+        key.contains("birth") -> DocCategory.FAMILY
+        key.contains("passport") || key.contains("zagran") -> DocCategory.IDENTITY
+        key.contains("snils") || key.contains("inn") -> DocCategory.IDENTITY
         else -> DocCategory.OTHER
     }
 }
 
-private fun matchesQuery(card: DocCard, query: String): Boolean {
+private fun matches(card: DocCard, query: String): Boolean {
     val term = query.trim().lowercase()
     if (term.isEmpty()) return true
     if (card.title.lowercase().contains(term)) return true
-    return card.fields.any { field -> field.value.lowercase().contains(term) }
+    return card.fields.any { it.value.lowercase().contains(term) }
 }
 
 @Composable
@@ -88,49 +80,24 @@ fun HomeScreen(
     var filter by remember { mutableStateOf<DocCategory?>(null) }
 
     val visible = remember(cards, query, filter) {
-        cards.filter { card ->
-            (filter == null || categoryOf(card) == filter) && matchesQuery(card, query)
-        }.sortedByDescending { it.createdAt }
+        cards
+            .filter { filter == null || categoryOf(it) == filter }
+            .filter { matches(it, query) }
+            .sortedByDescending { it.createdAt }
     }
 
-    val isDark = WalletTheme.extra.isDark
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DocumentGradients.screenBrush(isDark))
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawCircle(
-                brush = DocumentGradients.glowBrush(isDark),
-                radius = size.minDimension * 0.85f,
-                center = Offset(size.width * 0.85f, size.height * 0.04f)
-            )
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        Palette.Mint.copy(alpha = if (isDark) 0.10f else 0.14f),
-                        androidx.compose.ui.graphics.Color.Transparent
-                    )
-                ),
-                radius = size.minDimension * 0.7f,
-                center = Offset(size.width * 0.05f, size.height * 0.45f)
-            )
-        }
-
+    WalletBackground {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .statusBarsPadding()
                 .padding(horizontal = 20.dp)
         ) {
             Spacer(Modifier.height(24.dp))
-
             Text(
                 text = "Документы",
                 style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
 
@@ -141,10 +108,23 @@ fun HomeScreen(
             Spacer(Modifier.height(24.dp))
 
             if (visible.isEmpty()) {
-                EmptyState(
-                    hasAnyCards = cards.isNotEmpty(),
-                    onAddCard = onAddCard
-                )
+                GlassPanel(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = if (cards.isEmpty()) "Пока нет документов" else "Ничего не найдено",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = if (cards.isEmpty()) {
+                            "Добавьте первый документ — он останется на устройстве"
+                        } else {
+                            "Измените запрос или категорию"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             } else {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(
@@ -152,29 +132,11 @@ fun HomeScreen(
                     )
                 ) {
                     visible.forEachIndexed { index, card ->
-                        AnimatedVisibility(
-                            visible = true,
-                            enter = fadeIn(
-                                animationSpec = tween(
-                                    durationMillis = 280,
-                                    delayMillis = index * 70
-                                )
-                            ) + slideInVertically(
-                                animationSpec = tween(
-                                    durationMillis = 320,
-                                    delayMillis = index * 70
-                                )
-                            ) { height -> height / 3 }
-                        ) {
-                            PlasticCard(
-                                card = card,
-                                compact = true,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .zIndex(index.toFloat()),
-                                onClick = { onOpenCard(card.id) }
-                            )
-                        }
+                        CardInStack(
+                            card = card,
+                            index = index,
+                            onClick = { onOpenCard(card.id) }
+                        )
                     }
                 }
             }
@@ -182,7 +144,7 @@ fun HomeScreen(
             Spacer(Modifier.height(160.dp))
         }
 
-        HomeBottomBar(
+        BottomBar(
             onAddCard = onAddCard,
             onOpenSettings = onOpenSettings,
             modifier = Modifier
@@ -194,13 +156,37 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeBottomBar(
+private fun CardInStack(
+    card: DocCard,
+    index: Int,
+    onClick: () -> Unit
+) {
+    val appear by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
+        label = "cardAppear"
+    )
+    DocumentStyleCard(
+        card = card,
+        compact = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .zIndex(index.toFloat())
+            .graphicsLayer {
+                alpha = appear
+                translationY = (1f - appear) * 40f
+            },
+        onClick = onClick
+    )
+}
+
+@Composable
+private fun BottomBar(
     onAddCard: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val extras = WalletTheme.extra
-    val haptics = LocalHapticFeedback.current
 
     Row(
         modifier = modifier
@@ -209,18 +195,14 @@ private fun HomeBottomBar(
             .background(extras.glassFill)
             .border(1.dp, extras.glassBorder, CircleShape)
             .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
             modifier = Modifier
                 .weight(1f)
                 .clip(CircleShape)
                 .background(Palette.Gold)
-                .clickable {
-                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onAddCard()
-                }
+                .clickable { onAddCard() }
                 .padding(vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
@@ -231,80 +213,26 @@ private fun HomeBottomBar(
                 tint = Palette.NightBase,
                 modifier = Modifier.size(20.dp)
             )
-            Spacer(Modifier.size(8.dp))
             Text(
-                text = "Добавить",
+                text = "  Добавить",
                 style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
                 color = Palette.NightBase
             )
         }
-
+        Spacer(Modifier.size(8.dp))
         Box(
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(extras.pillFill)
-                .border(1.dp, extras.pillStroke, CircleShape)
-                .clickable {
-                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onOpenSettings()
-                },
+                .clickable { onOpenSettings() },
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Filled.Settings,
                 contentDescription = "Настройки",
-                tint = MaterialTheme.colorScheme.onSurface,
+                tint = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.size(21.dp)
             )
-        }
-    }
-}
-
-@Composable
-private fun EmptyState(
-    hasAnyCards: Boolean,
-    onAddCard: () -> Unit
-) {
-    val extras = WalletTheme.extra
-    val haptics = LocalHapticFeedback.current
-
-    GlassPanel(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = if (hasAnyCards) "Ничего не найдено" else "Пока нет документов",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text = if (hasAnyCards) {
-                "Измените запрос или выберите другую категорию"
-            } else {
-                "Добавьте паспорт, СНИЛС, полисы и другие документы"
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        if (!hasAnyCards) {
-            Spacer(Modifier.height(16.dp))
-            Box(
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(extras.chipSelectedFill)
-                    .clickable {
-                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onAddCard()
-                    }
-                    .padding(horizontal = 18.dp, vertical = 11.dp)
-            ) {
-                Text(
-                    text = "Добавить документ",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = extras.chipSelectedText
-                )
-            }
         }
     }
 }
