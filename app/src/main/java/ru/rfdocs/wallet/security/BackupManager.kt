@@ -8,7 +8,6 @@ import kotlinx.serialization.json.Json
 import ru.rfdocs.wallet.data.model.DocCard
 import ru.rfdocs.wallet.data.repo.DocRepository
 import ru.rfdocs.wallet.data.repo.PhotoStore
-import java.io.BufferedOutputStream
 import java.io.ByteArrayOutputStream
 import java.io.FileOutputStream
 import java.io.IOException
@@ -78,11 +77,8 @@ object BackupManager {
             buffer.close()
 
             require(encryptedBytes.isNotEmpty()) { "Нет данных для экспорта" }
-            require(encryptedBytes.size > HEADER.length + SALT_SIZE + MIN_IV_SIZE) {
-                "Внутренняя ошибка формирования файла"
-            }
 
-            writeBytes(context, uri, encryptedBytes)
+            writeAll(context, uri, encryptedBytes)
 
             Result.success(cardCount)
         } catch (error: Throwable) {
@@ -96,7 +92,9 @@ object BackupManager {
                 input.readBytes()
             } ?: return Result.failure(IllegalStateException("Не удалось прочитать файл"))
 
-            require(bytes.isNotEmpty()) { "Файл пустой (0 байт)" }
+            require(bytes.isNotEmpty()) {
+                "Файл пустой (0 байт) — экспорт не записал данные, создайте бэкап заново"
+            }
 
             val header = HEADER.toByteArray(Charsets.US_ASCII)
             require(bytes.size > header.size + SALT_SIZE + 1 + MIN_IV_SIZE) {
@@ -159,27 +157,46 @@ object BackupManager {
         }
     }
 
-    private fun writeBytes(context: Context, uri: Uri, bytes: ByteArray) {
-        val rawOut = context.contentResolver.openOutputStream(uri, "wt")
-            ?: context.contentResolver.openOutputStream(uri)
-            ?: throw IOException("Не удалось открыть файл для записи")
+    private fun writeAll(context: Context, uri: Uri, bytes: ByteArray) {
+        var writeError: Throwable? = null
 
-        rawOut.use { raw ->
-            BufferedOutputStream(raw).use { out ->
-                out.write(bytes)
-                out.flush()
-                runCatching { (raw as? FileOutputStream)?.fd?.sync() }
+        try {
+            context.contentResolver.openFileDescriptor(uri, "wt")?.use { descriptor ->
+                FileOutputStream(descriptor.fileDescriptor).use { output ->
+                    output.write(bytes)
+                    output.flush()
+                    runCatching { output.fd.sync() }
+                }
             }
+        } catch (error: Throwable) {
+            writeError = error
         }
 
-        val written = context.contentResolver.openInputStream(uri)?.use { input ->
-            input.readBytes().size
-        } ?: -1
+        val currentSize = sizeOf(context, uri)
+        if (currentSize == bytes.size) return
 
-        if (written != bytes.size) {
-            throw IOException("Файл записался не полностью ($written из ${bytes.size} байт)")
+        try {
+            context.contentResolver.openOutputStream(uri, "wt")?.use { output ->
+                output.write(bytes)
+                output.flush()
+            }
+        } catch (error: Throwable) {
+            writeError = error
+        }
+
+        val finalSize = sizeOf(context, uri)
+        if (finalSize != bytes.size) {
+            throw IOException(
+                "Не удалось записать файл: $finalSize из ${bytes.size} байт" +
+                    (writeError?.message?.let { " ($it)" } ?: "")
+            )
         }
     }
+
+    private fun sizeOf(context: Context, uri: Uri): Int =
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            input.readBytes().size
+        } ?: -1
 
     fun suggestedFileName(): String {
         val stamp = java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US)
