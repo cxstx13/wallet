@@ -2,6 +2,8 @@ package ru.rfdocs.wallet.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -84,8 +86,19 @@ fun AppRoot(viewModel: WalletViewModel = viewModel()) {
         AnimatedContent(
             targetState = screen,
             transitionSpec = {
-                (fadeIn(tween(240)) + scaleIn(tween(240), initialScale = 0.96f)) togetherWith
-                    (fadeOut(tween(160)) + scaleOut(tween(200), targetScale = 0.98f))
+                (
+                    fadeIn(animationSpec = tween(220)) +
+                        scaleIn(
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            ),
+                            initialScale = 0.94f
+                        )
+                    ) togetherWith (
+                    fadeOut(animationSpec = tween(140)) +
+                        scaleOut(animationSpec = tween(180), targetScale = 0.98f)
+                    )
             },
             label = "wallet_screen"
         ) { current ->
