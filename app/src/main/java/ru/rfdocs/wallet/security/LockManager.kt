@@ -6,16 +6,16 @@ import kotlinx.coroutines.flow.asStateFlow
 
 object LockManager {
 
-    private val _isLocked = MutableStateFlow(true)
-    val isLocked: StateFlow<Boolean> = _isLocked.asStateFlow()
+    private val _locked = MutableStateFlow(true)
+    val locked: StateFlow<Boolean> = _locked.asStateFlow()
+
+    fun isLocked(): Boolean = _locked.value
 
     fun lock() {
-        _isLocked.value = true
+        _locked.value = true
     }
 
     fun unlock() {
-        _isLocked.value = false
+        _locked.value = false
     }
-
-    fun isLockedNow(): Boolean = _isLocked.value
 }
