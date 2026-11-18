@@ -74,6 +74,7 @@ import ru.rfdocs.wallet.ui.components.ExpiryBanner
 import ru.rfdocs.wallet.ui.components.FieldRow
 import ru.rfdocs.wallet.ui.components.GlassPanel
 import ru.rfdocs.wallet.ui.components.SectionTitle
+import ru.rfdocs.wallet.ui.components.WalletBackground
 import ru.rfdocs.wallet.ui.components.expiryDateOf
 import ru.rfdocs.wallet.ui.input.PhoneMask
 import ru.rfdocs.wallet.ui.theme.Palette
@@ -134,41 +135,20 @@ fun CardDetailScreen(
     val phoneField = card.fields.firstOrNull { it.phone && it.value.isNotBlank() }
 
     val actions = buildList {
-        add(
-            DetailAction(
-                label = "Поделиться",
-                icon = Icons.Filled.Share,
-                onClick = { showShare = true }
-            )
-        )
-        add(
-            DetailAction(
-                label = "QR-код",
-                icon = Icons.Filled.QrCode2,
-                onClick = { showQr = true }
-            )
-        )
-        add(
-            DetailAction(
-                label = "Фото документа",
-                icon = Icons.Filled.PhotoCamera,
-                onClick = { picker.launch("image/*") }
-            )
-        )
+        add(DetailAction("Поделиться", Icons.Filled.Share) { showShare = true })
+        add(DetailAction("QR-код", Icons.Filled.QrCode2) { showQr = true })
+        add(DetailAction("Фото документа", Icons.Filled.PhotoCamera) { picker.launch("image/*") })
         if (phoneField != null) {
             add(
-                DetailAction(
-                    label = "Позвонить",
-                    icon = Icons.Filled.Call,
-                    onClick = { dialNumber(context, PhoneMask.toDialable(phoneField.value)) }
-                )
+                DetailAction("Позвонить", Icons.Filled.Call) {
+                    dialNumber(context, PhoneMask.toDialable(phoneField.value))
+                }
             )
         }
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
@@ -199,7 +179,7 @@ fun CardDetailScreen(
                             } else {
                                 Icons.Filled.Visibility
                             },
-                            contentDescription = if (showNumber) "Скрыть номер" else "Показать номер"
+                            contentDescription = "Показать номер"
                         )
                     }
                     IconButton(
@@ -208,10 +188,7 @@ fun CardDetailScreen(
                             onEdit(card.id)
                         }
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Edit,
-                            contentDescription = "Изменить"
-                        )
+                        Icon(Icons.Filled.Edit, contentDescription = "Изменить")
                     }
                     IconButton(
                         onClick = {
@@ -219,53 +196,40 @@ fun CardDetailScreen(
                             showDelete = true
                         }
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Delete,
-                            contentDescription = "Удалить"
-                        )
+                        Icon(Icons.Filled.Delete, contentDescription = "Удалить")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = Color.Transparent
                 )
             )
         },
         floatingActionButton = {
-            DetailActionsFab(
-                actions = actions,
-                modifier = Modifier.padding(8.dp)
-            )
+            DetailActionsFab(actions = actions, modifier = Modifier.padding(8.dp))
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-        ) {
-            DocumentStyleCard(
-                card = card,
-                modifier = Modifier.fillMaxWidth(),
-                showNumber = showNumber
-            )
+        WalletBackground(modifier = Modifier.padding(padding)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+            ) {
+                DocumentStyleCard(
+                    card = card,
+                    modifier = Modifier.fillMaxWidth(),
+                    showNumber = showNumber
+                )
 
-            if (expiryDateOf(card) != null) {
-                Spacer(Modifier.height(16.dp))
-                ExpiryBanner(card = card)
-            }
+                if (expiryDateOf(card) != null) {
+                    Spacer(Modifier.height(16.dp))
+                    ExpiryBanner(card = card)
+                }
 
-            Spacer(Modifier.height(22.dp))
-            SectionTitle(text = "Данные документа")
-            Spacer(Modifier.height(12.dp))
-            GlassPanel(modifier = Modifier.fillMaxWidth()) {
-                if (card.fields.isEmpty()) {
-                    Text(
-                        text = "Поля не заполнены",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
+                Spacer(Modifier.height(22.dp))
+                SectionTitle(text = "Данные документа")
+                Spacer(Modifier.height(12.dp))
+                GlassPanel(modifier = Modifier.fillMaxWidth()) {
                     card.fields.forEach { field ->
                         FieldRow(
                             field = field,
@@ -280,23 +244,23 @@ fun CardDetailScreen(
                         )
                     }
                 }
-            }
 
-            DetailPhotosSection(
-                card = card,
-                onRemovePhoto = { photoId ->
-                    DocRepository.get(card.id)?.let { current ->
-                        DocRepository.upsert(
-                            current.copy(
-                                photoIds = current.photoIds - photoId,
-                                updatedAt = System.currentTimeMillis()
+                DetailPhotosSection(
+                    card = card,
+                    onRemovePhoto = { photoId ->
+                        DocRepository.get(card.id)?.let { current ->
+                            DocRepository.upsert(
+                                current.copy(
+                                    photoIds = current.photoIds - photoId,
+                                    updatedAt = System.currentTimeMillis()
+                                )
                             )
-                        )
+                        }
                     }
-                }
-            )
+                )
 
-            Spacer(Modifier.height(120.dp))
+                Spacer(Modifier.height(120.dp))
+            }
         }
     }
 
@@ -351,10 +315,7 @@ private fun DetailActionsFab(
             contentColor = Palette.NightBase,
             shape = CircleShape
         ) {
-            Icon(
-                imageVector = Icons.Filled.MoreVert,
-                contentDescription = "Действия с документом"
-            )
+            Icon(Icons.Filled.MoreVert, contentDescription = "Действия")
         }
 
         DropdownMenu(
@@ -419,7 +380,7 @@ private fun DetailPhotosSection(
                 if (bitmap != null) {
                     Image(
                         bitmap = bitmap.asImageBitmap(),
-                        contentDescription = "Фотография документа",
+                        contentDescription = "Фото документа",
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(8.dp)
