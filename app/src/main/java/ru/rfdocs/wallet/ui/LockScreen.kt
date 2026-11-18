@@ -152,7 +152,7 @@ fun LockScreen(
             Spacer(Modifier.height(16.dp))
             TextButton(onClick = { showReset = true }) {
                 Text(
-                    text = "Забыли PIN? Сбросить хранилище",
+                    text = "Забыли код доступа?",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -163,8 +163,8 @@ fun LockScreen(
 
     if (showReset) {
         ConfirmDialog(
-            title = "Сбросить хранилище?",
-            message = "Все документы и PIN-код будут удалены с устройства.",
+            title = "Сбросить всё?",
+            message = "Данные и код доступа будут удалены.",
             confirmText = "Удалить",
             onConfirm = {
                 wipeVault(context)
