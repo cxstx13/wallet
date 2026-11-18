@@ -10,6 +10,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,10 +33,10 @@ fun AppRoot(viewModel: WalletViewModel = viewModel()) {
     val context = LocalContext.current
     var darkOverride by remember { mutableStateOf(SecurePrefs.darkTheme(context)) }
     val isDark = darkOverride ?: isSystemInDarkTheme()
+    val locked by LockManager.locked.collectAsState()
 
     WalletTheme(darkTheme = isDark) {
         var pinConfigured by remember { mutableStateOf(PinVault.isPinSet(context)) }
-        var locked by remember { mutableStateOf(LockManager.isLocked()) }
         var screen by remember { mutableStateOf<Screen>(Screen.Home) }
 
         if (!pinConfigured) {
@@ -48,7 +49,6 @@ fun AppRoot(viewModel: WalletViewModel = viewModel()) {
                     pinConfigured = true
                     screen = Screen.Home
                     LockManager.unlock()
-                    locked = false
                 }
             )
             return@WalletTheme
@@ -56,10 +56,7 @@ fun AppRoot(viewModel: WalletViewModel = viewModel()) {
 
         if (locked) {
             LockScreen(
-                onUnlocked = {
-                    LockManager.unlock()
-                    locked = false
-                },
+                onUnlocked = { LockManager.unlock() },
                 onVaultReset = {
                     screen = Screen.Home
                     pinConfigured = false
