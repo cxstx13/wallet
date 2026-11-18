@@ -43,6 +43,7 @@ import ru.rfdocs.wallet.security.SecurePrefs
 import ru.rfdocs.wallet.ui.PinSetupScreen
 import ru.rfdocs.wallet.ui.WalletViewModel
 import ru.rfdocs.wallet.ui.components.SectionTitle
+import ru.rfdocs.wallet.ui.components.WalletBackground
 
 @Composable
 fun SettingsScreen(
@@ -122,138 +123,140 @@ fun SettingsScreen(
         onDismissWipe = { showWipe = false }
     )
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .statusBarsPadding()
-            .padding(horizontal = 16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+    WalletBackground {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp)
         ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Назад"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Назад"
+                    )
+                }
+                Text(
+                    text = "Настройки",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
-            Text(
-                text = "Настройки",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-        }
 
-        Spacer(Modifier.height(8.dp))
-        SectionTitle(text = "Безопасность")
-        Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
+            SectionTitle(text = "Безопасность")
+            Spacer(Modifier.height(10.dp))
 
-        SettingsSwitchRow(
-            title = "Вход по отпечатку",
-            subtitle = if (biometricAvailable) {
-                "Быстрый вход вместо ввода PIN-кода"
-            } else {
-                "Отпечаток не настроен на устройстве"
-            },
-            checked = biometricEnabled,
-            enabled = biometricAvailable,
-            onCheckedChange = { value ->
-                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                biometricEnabled = value
-                SecurePrefs.setBiometricEnabled(context, value)
-            }
-        )
-
-        Spacer(Modifier.height(10.dp))
-        SettingsSwitchRow(
-            title = "Запрет скриншотов",
-            subtitle = if (screenshotBlocked) {
-                "FLAG_SECURE включён: снимки экрана блокируются"
-            } else {
-                "Снимки экрана разрешены — данные видны при захвате"
-            },
-            checked = screenshotBlocked,
-            enabled = true,
-            onCheckedChange = { value ->
-                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                applyScreenshotPolicy(value)
-            }
-        )
-
-        Spacer(Modifier.height(10.dp))
-        SettingsNavRow(
-            title = "Сменить PIN-код",
-            onClick = {
-                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                showPinChange = true
-            }
-        )
-
-        Spacer(Modifier.height(22.dp))
-        SectionTitle(text = "Оформление")
-        Spacer(Modifier.height(10.dp))
-        SettingsSwitchRow(
-            title = "Тёмная тема",
-            subtitle = "Глубокий графитовый фон",
-            checked = darkTheme,
-            enabled = true,
-            onCheckedChange = { value ->
-                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                onToggleDarkTheme(value)
-            }
-        )
-
-        Spacer(Modifier.height(22.dp))
-        SectionTitle(text = "Резервная копия")
-        Spacer(Modifier.height(10.dp))
-        SettingsNavRow(
-            title = "Экспорт зашифрованного бэкапа",
-            subtitle = "Один файл, защищённый паролем",
-            onClick = {
-                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                if (DocRepository.cardCount() == 0) {
-                    Toast.makeText(context, "Нет документов для экспорта", Toast.LENGTH_SHORT).show()
+            SettingsSwitchRow(
+                title = "Вход по отпечатку",
+                subtitle = if (biometricAvailable) {
+                    "Быстрый вход вместо ввода PIN-кода"
                 } else {
-                    exportLauncher.launch(BackupManager.suggestedFileName())
+                    "Отпечаток не настроен на устройстве"
+                },
+                checked = biometricEnabled,
+                enabled = biometricAvailable,
+                onCheckedChange = { value ->
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    biometricEnabled = value
+                    SecurePrefs.setBiometricEnabled(context, value)
                 }
-            }
-        )
+            )
 
-        Spacer(Modifier.height(10.dp))
-        SettingsNavRow(
-            title = "Импорт из бэкапа",
-            subtitle = "Заменит текущие документы",
-            onClick = {
-                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                importLauncher.launch(arrayOf("application/octet-stream", "*/*"))
-            }
-        )
+            Spacer(Modifier.height(10.dp))
+            SettingsSwitchRow(
+                title = "Запрет скриншотов",
+                subtitle = if (screenshotBlocked) {
+                    "Снимки экрана блокируются"
+                } else {
+                    "Снимки экрана разрешены"
+                },
+                checked = screenshotBlocked,
+                enabled = true,
+                onCheckedChange = { value ->
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    applyScreenshotPolicy(value)
+                }
+            )
 
-        Spacer(Modifier.height(22.dp))
-        SectionTitle(text = "Прочее")
-        Spacer(Modifier.height(10.dp))
-        SettingsNavRow(
-            title = "О приложении и конфиденциальность",
-            onClick = {
-                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                onAbout()
-            }
-        )
+            Spacer(Modifier.height(10.dp))
+            SettingsNavRow(
+                title = "Сменить PIN-код",
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    showPinChange = true
+                }
+            )
 
-        Spacer(Modifier.height(10.dp))
-        SettingsNavRow(
-            title = "Удалить все документы",
-            subtitle = "Безвозвратно, только на этом устройстве",
-            danger = true,
-            onClick = {
-                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                showWipe = true
-            }
-        )
+            Spacer(Modifier.height(22.dp))
+            SectionTitle(text = "Оформление")
+            Spacer(Modifier.height(10.dp))
+            SettingsSwitchRow(
+                title = "Тёмная тема",
+                subtitle = "AMOLED-фон",
+                checked = darkTheme,
+                enabled = true,
+                onCheckedChange = { value ->
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onToggleDarkTheme(value)
+                }
+            )
 
-        Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(22.dp))
+            SectionTitle(text = "Резервная копия")
+            Spacer(Modifier.height(10.dp))
+            SettingsNavRow(
+                title = "Экспорт бэкапа",
+                subtitle = "Файл, защищённый паролем",
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    if (DocRepository.cardCount() == 0) {
+                        Toast.makeText(context, "Нет документов для экспорта", Toast.LENGTH_SHORT).show()
+                    } else {
+                        exportLauncher.launch(BackupManager.suggestedFileName())
+                    }
+                }
+            )
+
+            Spacer(Modifier.height(10.dp))
+            SettingsNavRow(
+                title = "Импорт из бэкапа",
+                subtitle = "Заменит текущие документы",
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    importLauncher.launch(arrayOf("application/octet-stream", "*/*"))
+                }
+            )
+
+            Spacer(Modifier.height(22.dp))
+            SectionTitle(text = "Прочее")
+            Spacer(Modifier.height(10.dp))
+            SettingsNavRow(
+                title = "О приложении",
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onAbout()
+                }
+            )
+
+            Spacer(Modifier.height(10.dp))
+            SettingsNavRow(
+                title = "Удалить все документы",
+                subtitle = "Безвозвратно, только на этом устройстве",
+                danger = true,
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    showWipe = true
+                }
+            )
+
+            Spacer(Modifier.height(32.dp))
+        }
     }
 }
