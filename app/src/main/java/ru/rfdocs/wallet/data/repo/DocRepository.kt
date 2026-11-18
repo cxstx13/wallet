@@ -69,12 +69,9 @@ object DocRepository {
         return runCatching {
             val decrypted = CryptoManager.decrypt(file.readBytes())
             val parsed = json.decodeFromString(cardsSerializer, String(decrypted, Charsets.UTF_8))
-            normalize(parsed)
+            parsed.distinctBy { it.id }
         }.getOrDefault(emptyList())
     }
-
-    private fun normalize(cards: List<DocCard>): List<DocCard> =
-        cards.distinctBy { it.id }.sortedByDescending { it.createdAt }
 
     private fun writeToDisk(cards: List<DocCard>) {
         val ctx = requireContext()
@@ -119,7 +116,7 @@ object DocRepository {
 
     fun replaceAll(cards: List<DocCard>) {
         synchronized(lock) {
-            val snapshot = normalize(cards)
+            val snapshot = cards.distinctBy { it.id }
             _cards.value = snapshot
             writeToDisk(snapshot)
         }
@@ -163,6 +160,7 @@ object DocRepository {
 object PhotoStore {
 
     private const val PHOTO_DIR = "vault/photos"
+    private const val DEFAULT_MAX_DIMENSION = 1600
 
     private fun dir(context: Context): File {
         val directory = File(context.filesDir, PHOTO_DIR)
@@ -183,9 +181,31 @@ object PhotoStore {
         return runCatching { CryptoManager.decrypt(file.readBytes()) }.getOrNull()
     }
 
-    fun loadBitmap(context: Context, photoId: String): Bitmap? {
+    fun loadBitmap(
+        context: Context,
+        photoId: String,
+        maxDimension: Int = DEFAULT_MAX_DIMENSION
+    ): Bitmap? {
         val bytes = load(context, photoId) ?: return null
-        return runCatching { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }.getOrNull()
+        return decodeSampled(bytes, maxDimension)
+    }
+
+    fun decodeSampled(bytes: ByteArray, maxDimension: Int = DEFAULT_MAX_DIMENSION): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        val width = bounds.outWidth
+        val height = bounds.outHeight
+        if (width <= 0 || height <= 0) return null
+
+        var sample = 1
+        while (maxOf(width, height) / sample > maxDimension) {
+            sample *= 2
+        }
+
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        return runCatching {
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+        }.getOrNull()
     }
 
     fun delete(context: Context, photoId: String) {
