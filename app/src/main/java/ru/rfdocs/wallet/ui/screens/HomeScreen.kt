@@ -33,7 +33,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -95,7 +94,6 @@ fun HomeScreen(
     var filter by remember { mutableStateOf<DocCategory?>(null) }
     var sortMode by remember { mutableStateOf(SortMode.DATE) }
     var sortMenu by remember { mutableStateOf(false) }
-    var revealed by remember { mutableStateOf(false) }
 
     val visible = remember(cards, query, filter, sortMode) {
         val filtered = cards.filter { card ->
@@ -110,8 +108,6 @@ fun HomeScreen(
             SortMode.TITLE -> filtered.sortedBy { it.title }
         }
     }
-
-    LaunchedEffect(Unit) { revealed = true }
 
     Box(
         modifier = Modifier
@@ -183,32 +179,40 @@ fun HomeScreen(
             CategoryChips(selected = filter, onSelect = { filter = it })
             Spacer(Modifier.height(24.dp))
 
-            AnimatedVisibility(
-                visible = revealed,
-                enter = fadeIn(tween(260)) + slideInVertically(tween(260)) { height -> height / 10 }
-            ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    if (visible.isEmpty()) {
-                        EmptyState(
-                            hasAnyCards = cards.isNotEmpty(),
-                            onAddCard = onAddCard
-                        )
-                    } else {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(
-                                if (visible.size > 1) (-24).dp else 14.dp
-                            )
-                        ) {
-                            visible.forEachIndexed { index, card ->
-                                PlasticCard(
-                                    card = card,
-                                    compact = true,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .zIndex(index.toFloat()),
-                                    onClick = { onOpenCard(card.id) }
+            if (visible.isEmpty()) {
+                EmptyState(
+                    hasAnyCards = cards.isNotEmpty(),
+                    onAddCard = onAddCard
+                )
+            } else {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(
+                        if (visible.size > 1) (-24).dp else 14.dp
+                    )
+                ) {
+                    visible.forEachIndexed { index, card ->
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn(
+                                animationSpec = tween(
+                                    durationMillis = 280,
+                                    delayMillis = index * 70
                                 )
-                            }
+                            ) + slideInVertically(
+                                animationSpec = tween(
+                                    durationMillis = 300,
+                                    delayMillis = index * 70
+                                )
+                            ) { height -> height / 4 }
+                        ) {
+                            PlasticCard(
+                                card = card,
+                                compact = true,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .zIndex(index.toFloat()),
+                                onClick = { onOpenCard(card.id) }
+                            )
                         }
                     }
                 }
@@ -253,7 +257,7 @@ private fun HomeBottomBar(
                 .clip(CircleShape)
                 .background(Palette.Gold)
                 .clickable {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onAddCard()
                 }
                 .padding(vertical = 14.dp),
@@ -282,7 +286,7 @@ private fun HomeBottomBar(
                 .background(extras.pillFill)
                 .border(1.dp, extras.pillStroke, CircleShape)
                 .clickable {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onOpenSettings()
                 },
             contentAlignment = Alignment.Center
@@ -329,7 +333,7 @@ private fun EmptyState(
                     .clip(CircleShape)
                     .background(extras.chipSelectedFill)
                     .clickable {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onAddCard()
                     }
                     .padding(horizontal = 18.dp, vertical = 11.dp)
