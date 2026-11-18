@@ -2,46 +2,29 @@ package ru.rfdocs.wallet.ui
 
 import android.content.Context
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Backspace
-import androidx.compose.material.icons.rounded.Fingerprint
-import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
@@ -52,11 +35,7 @@ import ru.rfdocs.wallet.security.CryptoManager
 import ru.rfdocs.wallet.security.LockManager
 import ru.rfdocs.wallet.security.PinVault
 import ru.rfdocs.wallet.security.SecurePrefs
-import ru.rfdocs.wallet.ui.theme.MonoStyle
 import ru.rfdocs.wallet.ui.theme.Palette
-import ru.rfdocs.wallet.ui.theme.WalletTheme
-
-const val PIN_LENGTH = 4
 
 fun Context.findFragmentActivity(): FragmentActivity? {
     var ctx: Context? = this
@@ -83,9 +62,11 @@ fun LockScreen(
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
     val activity = remember(context) { context.findFragmentActivity() }
+
     var pin by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf(false) }
+    var errorCount by remember { mutableIntStateOf(0) }
     var showReset by remember { mutableStateOf(false) }
+
     val biometricEnabled = remember { SecurePrefs.isBiometricEnabled(context) }
     val biometricAvailable = remember { BiometricHelper.isBiometricAvailable(context) }
 
@@ -102,24 +83,22 @@ fun LockScreen(
     }
 
     LaunchedEffect(Unit) {
-        delay(350)
+        delay(300)
         tryBiometric()
     }
 
     LaunchedEffect(pin) {
-        if (pin.length == PIN_LENGTH) {
-            if (PinVault.verify(context, pin)) {
-                SecurePrefs.setFailedAttempts(context, 0)
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                onUnlocked()
-            } else {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                error = true
-                SecurePrefs.setFailedAttempts(context, SecurePrefs.failedAttempts(context) + 1)
-                delay(650)
-                pin = ""
-                error = false
-            }
+        if (pin.length < PIN_LENGTH) return@LaunchedEffect
+        if (PinVault.verify(context, pin)) {
+            SecurePrefs.setFailedAttempts(context, 0)
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            onUnlocked()
+        } else {
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            errorCount += 1
+            SecurePrefs.setFailedAttempts(context, SecurePrefs.failedAttempts(context) + 1)
+            delay(600)
+            pin = ""
         }
     }
 
@@ -131,49 +110,29 @@ fun LockScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .navigationBarsPadding()
                 .padding(horizontal = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(
-                modifier = Modifier
-                    .size(74.dp)
-                    .clip(CircleShape)
-                    .background(WalletTheme.extra.glassFill)
-                    .border(1.dp, WalletTheme.extra.glassBorder, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Lock,
-                    contentDescription = null,
-                    tint = Palette.Gold,
-                    modifier = Modifier.size(30.dp)
-                )
-            }
-            Spacer(modifier = Modifier.height(20.dp))
-            Text(
-                text = "Введите PIN-код",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground
+            Spacer(Modifier.weight(1f))
+
+            PinHeader(
+                title = "Введите PIN-код",
+                subtitle = "Локальное хранилище документов"
             )
-            Spacer(modifier = Modifier.height(6.dp))
+
+            Spacer(Modifier.height(30.dp))
+            PinDots(length = PIN_LENGTH, filled = pin.length, errorCount = errorCount)
+            Spacer(Modifier.height(12.dp))
             Text(
-                text = "Локальное хранилище документов",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = if (errorCount > 0) "Неверный PIN-код" else " ",
+                style = MaterialTheme.typography.labelLarge,
+                color = if (errorCount > 0) Palette.Danger else Palette.Success,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(28.dp))
-            PinDots(length = PIN_LENGTH, filled = pin.length, error = error)
-            Spacer(modifier = Modifier.height(14.dp))
-            Text(
-                text = if (error) "Неверный PIN-код" else " ",
-                style = MaterialTheme.typography.labelLarge,
-                color = Palette.Danger,
-                modifier = Modifier.alpha(if (error) 1f else 0f)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+
+            Spacer(Modifier.weight(1f))
+
             PinKeypad(
                 onDigit = { digit -> if (pin.length < PIN_LENGTH) pin += digit },
                 onBackspace = { pin = pin.dropLast(1) },
@@ -181,10 +140,10 @@ fun LockScreen(
                     { tryBiometric() }
                 } else {
                     null
-                },
-                modifier = Modifier.fillMaxWidth()
+                }
             )
-            Spacer(modifier = Modifier.height(18.dp))
+
+            Spacer(Modifier.height(16.dp))
             TextButton(onClick = { showReset = true }) {
                 Text(
                     text = "Забыли PIN? Сбросить хранилище",
@@ -192,6 +151,7 @@ fun LockScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            Spacer(Modifier.height(8.dp))
         }
     }
 
@@ -213,154 +173,5 @@ fun LockScreen(
                 TextButton(onClick = { showReset = false }) { Text("Отмена") }
             }
         )
-    }
-}
-
-@Composable
-fun PinDots(length: Int, filled: Int, error: Boolean = false) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        repeat(length) { index ->
-            val isFilled = index < filled
-            val color = when {
-                error -> Palette.Danger
-                isFilled -> Palette.Gold
-                else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.32f)
-            }
-            Box(
-                modifier = Modifier
-                    .size(16.dp)
-                    .clip(CircleShape)
-                    .background(if (isFilled || error) color else Color.Transparent)
-                    .border(1.5.dp, color, CircleShape)
-            )
-        }
-    }
-}
-
-@Composable
-fun PinKeypad(
-    onDigit: (String) -> Unit,
-    onBackspace: () -> Unit,
-    onBiometric: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
-) {
-    val haptics = LocalHapticFeedback.current
-    val rows = listOf(
-        listOf("1", "2", "3"),
-        listOf("4", "5", "6"),
-        listOf("7", "8", "9")
-    )
-
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        rows.forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                row.forEach { digit ->
-                    KeypadButton(
-                        label = digit,
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onDigit(digit)
-                        }
-                    )
-                }
-            }
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                if (onBiometric != null) {
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(WalletTheme.extra.glassFill)
-                            .border(1.dp, WalletTheme.extra.glassBorder, RoundedCornerShape(20.dp))
-                            .clickable(
-                                interactionSource = MutableInteractionSource(),
-                                indication = null
-                            ) {
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onBiometric()
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Fingerprint,
-                            contentDescription = "Вход по отпечатку",
-                            tint = Palette.Gold,
-                            modifier = Modifier.size(30.dp)
-                        )
-                    }
-                }
-            }
-            KeypadButton(
-                label = "0",
-                modifier = Modifier.weight(1f),
-                onClick = {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onDigit("0")
-                }
-            )
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                KeypadButton(
-                    label = "",
-                    modifier = Modifier.width(64.dp),
-                    onClick = {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onBackspace()
-                    },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Rounded.Backspace,
-                            contentDescription = "Удалить",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun KeypadButton(
-    label: String,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-    icon: (@Composable () -> Unit)? = null
-) {
-    Box(
-        modifier = modifier
-            .height(64.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(WalletTheme.extra.glassFill)
-            .border(1.dp, WalletTheme.extra.glassBorder, RoundedCornerShape(20.dp))
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        if (icon != null) {
-            icon()
-        } else {
-            Text(
-                text = label,
-                style = MonoStyle,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
     }
 }
