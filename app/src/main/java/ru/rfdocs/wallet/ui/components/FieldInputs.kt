@@ -46,6 +46,13 @@ import ru.rfdocs.wallet.ui.theme.WalletTheme
 import java.time.LocalDate
 import java.util.Locale
 
+private fun isLongText(label: String): Boolean {
+    val lower = label.lowercase()
+    return lower.contains("адрес") || lower.contains("прописка") ||
+        lower.contains("родител") || lower.contains("место рождения") ||
+        lower.contains("кем выдан")
+}
+
 fun fieldDisplayValue(field: DocField): String {
     val mask = field.mask
     return if (mask.isNullOrBlank()) field.value else FieldMasks.display(field.value, mask)
@@ -146,7 +153,7 @@ private fun SoftTextField(
         onValueChange = onValueChange,
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = if (multiline) 78.dp else 24.dp),
+            .heightIn(min = if (multiline) 72.dp else 24.dp),
         textStyle = textStyle,
         singleLine = !multiline,
         minLines = if (multiline) 3 else 1,
@@ -211,9 +218,10 @@ fun DocFieldEditor(
     externalError: String? = null
 ) {
     val mask = field.mask
+    val hasMask = !mask.isNullOrBlank()
     val isDate = mask == Masks.DATE
     val isPhone = field.phone || mask == Masks.PHONE
-    val isMasked = !mask.isNullOrBlank() && !isDate && !isPhone
+    val isMaskedNumber = hasMask && !isDate && !isPhone
     val maxDigits = remember(mask) {
         if (mask.isNullOrBlank()) Int.MAX_VALUE else digitCount(mask)
     }
@@ -222,19 +230,13 @@ fun DocFieldEditor(
         when {
             isDate -> DateMask.transformation()
             isPhone -> PhoneMask.transformation()
-            !mask.isNullOrBlank() -> MaskedVisualTransformation(mask, digitCount(mask))
+            hasMask -> MaskedVisualTransformation(mask, digitCount(mask))
             else -> VisualTransformation.None
         }
     }
 
     val internalError = remember(field.value, mask) { fieldValidationError(field) }
     val shownError = externalError ?: internalError
-
-    val keyboardType = if (isDate || isPhone || isMasked) {
-        KeyboardType.Number
-    } else {
-        KeyboardType.Text
-    }
 
     WalletField(
         label = field.label,
@@ -250,24 +252,41 @@ fun DocFieldEditor(
             null
         }
     ) {
-        SoftTextField(
-            value = field.value.filter { it.isDigit() }.take(maxDigits),
-            onValueChange = { raw ->
-                onFieldChange(field.copy(value = raw.filter { it.isDigit() }.take(maxDigits)))
-            },
-            placeholder = when {
-                isDate -> "дд.мм.гггг"
-                isPhone -> "+7 (___) ___-__-__"
-                isMasked -> formatWithMask("", mask.orEmpty())
-                else -> field.label
-            },
-            mono = isDate || isPhone || isMasked,
-            multiline = false,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = keyboardType,
-                capitalization = KeyboardCapitalization.None
-            ),
-            visualTransformation = transformation
-        )
+        if (hasMask) {
+            SoftTextField(
+                value = digitsOnly(field.value).take(maxDigits),
+                onValueChange = { raw ->
+                    onFieldChange(field.copy(value = digitsOnly(raw).take(maxDigits)))
+                },
+                placeholder = when {
+                    isDate -> "дд.мм.гггг"
+                    isPhone -> "+7 (___) ___-__-__"
+                    else -> formatWithMask("", mask.orEmpty())
+                },
+                mono = true,
+                multiline = false,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (isDate || isPhone || isMaskedNumber) {
+                        KeyboardType.Number
+                    } else {
+                        KeyboardType.Text
+                    },
+                    capitalization = KeyboardCapitalization.None
+                ),
+                visualTransformation = transformation
+            )
+        } else {
+            SoftTextField(
+                value = field.value,
+                onValueChange = { raw -> onFieldChange(field.copy(value = raw)) },
+                placeholder = field.label,
+                mono = false,
+                multiline = isLongText(field.label),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    capitalization = KeyboardCapitalization.Sentences
+                )
+            )
+        }
     }
 }
