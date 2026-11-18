@@ -46,6 +46,8 @@ import ru.rfdocs.wallet.ui.WalletViewModel
 import ru.rfdocs.wallet.ui.components.SectionTitle
 import ru.rfdocs.wallet.ui.components.WalletBackground
 
+private val BackupMimeTypes = arrayOf("application/octet-stream", "*/*")
+
 @Composable
 private fun SwitchRow(
     title: String,
@@ -251,7 +253,7 @@ fun SettingsScreen(
                 title = "Импорт из бэкапа",
                 onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    importLauncher.launch(arrayOf("application/octet-stream", "*/*"))
+                    importLauncher.launch(BackupMimeTypes)
                 }
             )
 
