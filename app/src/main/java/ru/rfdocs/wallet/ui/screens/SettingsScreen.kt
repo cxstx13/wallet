@@ -61,8 +61,6 @@ fun SettingsScreen(
     var screenshotBlocked by remember { mutableStateOf(SecurePrefs.isScreenshotBlocked(context)) }
     var showPinChange by remember { mutableStateOf(false) }
     var showWipe by remember { mutableStateOf(false) }
-    var showExportPassword by remember { mutableStateOf(false) }
-    var showImportPassword by remember { mutableStateOf(false) }
     var pendingExportUri by remember { mutableStateOf<Uri?>(null) }
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -89,7 +87,6 @@ fun SettingsScreen(
     ) { uri: Uri? ->
         if (uri != null) {
             pendingExportUri = uri
-            showExportPassword = true
         }
     }
 
@@ -98,7 +95,6 @@ fun SettingsScreen(
     ) { uri: Uri? ->
         if (uri != null) {
             pendingImportUri = uri
-            showImportPassword = true
         }
     }
 
@@ -115,6 +111,15 @@ fun SettingsScreen(
         )
         return
     }
+
+    SettingsDialogs(
+        exportUri = pendingExportUri,
+        importUri = pendingImportUri,
+        wipeVisible = showWipe,
+        onDismissExport = { pendingExportUri = null },
+        onDismissImport = { pendingImportUri = null },
+        onDismissWipe = { showWipe = false }
+    )
 
     Column(
         modifier = Modifier
@@ -249,13 +254,4 @@ fun SettingsScreen(
 
         Spacer(Modifier.height(32.dp))
     }
-
-    SettingsDialogs(
-        exportUri = if (showExportPassword) pendingExportUri else null,
-        importUri = if (showImportPassword) pendingImportUri else null,
-        wipeVisible = showWipe,
-        onDismissExport = { showExportPassword = false },
-        onDismissImport = { showImportPassword = false },
-        onDismissWipe = { showWipe = false }
-    )
 }
