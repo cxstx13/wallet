@@ -8,13 +8,13 @@ import androidx.security.crypto.MasterKey
 object SecurePrefs {
 
     private const val FILE_NAME = "wallet_secure_prefs"
+
     private const val KEY_PIN_HASH = "pin_hash"
     private const val KEY_PIN_SALT = "pin_salt"
     private const val KEY_BIOMETRIC = "biometric_enabled"
     private const val KEY_DARK_THEME = "dark_theme"
-    private const val KEY_FAILED = "failed_attempts"
+    private const val KEY_FAILED_ATTEMPTS = "failed_attempts"
     private const val KEY_ONBOARDED = "onboarded"
-    private const val KEY_SCREENSHOT = "screenshot_protected"
 
     @Volatile
     private var cached: SharedPreferences? = null
@@ -28,6 +28,7 @@ object SecurePrefs {
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                 .setUserAuthenticationRequired(false)
                 .build()
+
             val created = EncryptedSharedPreferences.create(
                 appContext,
                 FILE_NAME,
@@ -40,16 +41,18 @@ object SecurePrefs {
         }
     }
 
-    fun getPinHash(context: Context): String? = prefs(context).getString(KEY_PIN_HASH, null)
+    fun getPinHash(context: Context): String? =
+        prefs(context).getString(KEY_PIN_HASH, null)
 
-    fun setPinHash(context: Context, hash: String) {
-        prefs(context).edit().putString(KEY_PIN_HASH, hash).apply()
+    fun setPinHash(context: Context, value: String) {
+        prefs(context).edit().putString(KEY_PIN_HASH, value).apply()
     }
 
-    fun getPinSalt(context: Context): String? = prefs(context).getString(KEY_PIN_SALT, null)
+    fun getPinSalt(context: Context): String? =
+        prefs(context).getString(KEY_PIN_SALT, null)
 
-    fun setPinSalt(context: Context, salt: String) {
-        prefs(context).edit().putString(KEY_PIN_SALT, salt).apply()
+    fun setPinSalt(context: Context, value: String) {
+        prefs(context).edit().putString(KEY_PIN_SALT, value).apply()
     }
 
     fun isBiometricEnabled(context: Context): Boolean =
@@ -57,13 +60,6 @@ object SecurePrefs {
 
     fun setBiometricEnabled(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_BIOMETRIC, enabled).apply()
-    }
-
-    fun isScreenshotProtected(context: Context): Boolean =
-        prefs(context).getBoolean(KEY_SCREENSHOT, true)
-
-    fun setScreenshotProtected(context: Context, enabled: Boolean) {
-        prefs(context).edit().putBoolean(KEY_SCREENSHOT, enabled).apply()
     }
 
     fun darkTheme(context: Context): Boolean? {
@@ -79,13 +75,15 @@ object SecurePrefs {
         prefs(context).edit().putBoolean(KEY_DARK_THEME, dark).apply()
     }
 
-    fun failedAttempts(context: Context): Int = prefs(context).getInt(KEY_FAILED, 0)
+    fun failedAttempts(context: Context): Int =
+        prefs(context).getInt(KEY_FAILED_ATTEMPTS, 0)
 
     fun setFailedAttempts(context: Context, count: Int) {
-        prefs(context).edit().putInt(KEY_FAILED, count).apply()
+        prefs(context).edit().putInt(KEY_FAILED_ATTEMPTS, count).apply()
     }
 
-    fun isOnboarded(context: Context): Boolean = prefs(context).getBoolean(KEY_ONBOARDED, false)
+    fun isOnboarded(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_ONBOARDED, false)
 
     fun setOnboarded(context: Context, value: Boolean) {
         prefs(context).edit().putBoolean(KEY_ONBOARDED, value).apply()
