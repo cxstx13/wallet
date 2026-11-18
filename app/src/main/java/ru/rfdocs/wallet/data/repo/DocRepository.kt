@@ -50,6 +50,8 @@ object DocRepository {
         }
     }
 
+    fun cardCount(): Int = _cards.value.size
+
     private fun requireContext(): Context =
         appContext ?: throw IllegalStateException("DocRepository не инициализирован")
 
@@ -125,8 +127,13 @@ object DocRepository {
 
     fun exportCardsJson(): ByteArray {
         synchronized(lock) {
-            val snapshot = json.encodeToString(cardsSerializer, _cards.value)
-            return snapshot.toByteArray(Charsets.UTF_8)
+            var snapshot = _cards.value
+            val ctx = appContext
+            if (snapshot.isEmpty() && ctx != null) {
+                snapshot = readFromDisk(ctx)
+                if (snapshot.isNotEmpty()) _cards.value = snapshot
+            }
+            return json.encodeToString(cardsSerializer, snapshot).toByteArray(Charsets.UTF_8)
         }
     }
 
