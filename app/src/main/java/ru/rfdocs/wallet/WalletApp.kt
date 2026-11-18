@@ -1,17 +1,12 @@
 package ru.rfdocs.wallet
 
 import android.app.Application
-import android.content.Context
+import ru.rfdocs.wallet.data.repo.DocRepository
 
 class WalletApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        appContext = applicationContext
-    }
-
-    companion object {
-        lateinit var appContext: Context
-            private set
+        DocRepository.init(this)
     }
 }
