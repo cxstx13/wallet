@@ -30,12 +30,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import ru.rfdocs.wallet.data.model.DocField
 import ru.rfdocs.wallet.ui.input.DateMask
 import ru.rfdocs.wallet.ui.input.FieldMasks
-import ru.rfdocs.wallet.ui.input.Masks
 import ru.rfdocs.wallet.ui.input.MaskedVisualTransformation
 import ru.rfdocs.wallet.ui.input.PhoneMask
 import ru.rfdocs.wallet.ui.input.digitCount
@@ -47,9 +45,18 @@ import ru.rfdocs.wallet.ui.theme.WalletTheme
 import java.time.LocalDate
 import java.util.Locale
 
+private fun isDatePattern(pattern: String): Boolean =
+    pattern == DateMask.PATTERN
+
+private fun isPhonePattern(pattern: String): Boolean =
+    pattern == PhoneMask.PATTERN
+
+private fun isNumericPattern(pattern: String): Boolean =
+    pattern.isNotBlank() && !isDatePattern(pattern) && !isPhonePattern(pattern)
+
 fun fieldDisplayValue(field: DocField): String {
-    val mask = field.mask
-    return if (mask.isNullOrBlank()) field.value else FieldMasks.display(field.value, mask)
+    val pattern = field.pattern
+    return if (pattern.isBlank()) field.value else FieldMasks.display(field.value, pattern)
 }
 
 @Composable
@@ -179,31 +186,38 @@ fun DocFieldEditor(
     onFieldChange: (DocField) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val mask = field.mask
-    val isDate = mask == Masks.DATE
-    val isPhone = field.phone || mask == Masks.PHONE
-    val isMasked = !mask.isNullOrBlank() && !isDate && !isPhone
-    val maxDigits = remember(mask) { mask?.let { digitCount(it) } ?: Int.MAX_VALUE }
+    val pattern = field.pattern
+    val isDate = isDatePattern(pattern)
+    val isPhone = isPhonePattern(pattern)
+    val isMasked = isNumericPattern(pattern)
+    val maxDigits = remember(pattern) {
+        if (pattern.isBlank()) Int.MAX_VALUE else digitCount(pattern)
+    }
 
-    val transformation: VisualTransformation = remember(mask) {
+    val transformation: VisualTransformation = remember(pattern) {
         when {
             isDate -> DateMask.transformation()
             isPhone -> PhoneMask.transformation()
-            !mask.isNullOrBlank() -> MaskedVisualTransformation(mask, digitCount(mask))
+            pattern.isNotBlank() -> MaskedVisualTransformation(pattern, digitCount(pattern))
             else -> VisualTransformation.None
         }
     }
 
-    val keyboardType = when {
-        isDate || isPhone || isMasked -> KeyboardType.Number
-        else -> KeyboardType.Text
+    val keyboardType = if (isDate || isPhone || isMasked) {
+        KeyboardType.Number
+    } else {
+        KeyboardType.Text
     }
 
     WalletField(
         label = field.label,
         modifier = modifier,
         trailing = if (isDate) {
-            { DatePickerButton(currentDigits = field.value) { digits -> onFieldChange(field.copy(value = digits)) } }
+            {
+                DatePickerButton(currentDigits = field.value) { digits ->
+                    onFieldChange(field.copy(value = digits))
+                }
+            }
         } else {
             null
         }
@@ -216,10 +230,10 @@ fun DocFieldEditor(
             placeholder = when {
                 isDate -> "дд.мм.гггг"
                 isPhone -> "+7 (___) ___-__-__"
-                isMasked -> formatWithMask("", mask.orEmpty())
+                isMasked -> formatWithMask("", pattern)
                 else -> field.label
             },
-            mono = isMasked || isDate || isPhone,
+            mono = isDate || isPhone || isMasked,
             multiline = false,
             keyboardOptions = KeyboardOptions(
                 keyboardType = keyboardType,
