@@ -37,7 +37,6 @@ import ru.rfdocs.wallet.security.LockManager
 import ru.rfdocs.wallet.security.PinVault
 import ru.rfdocs.wallet.security.SecurePrefs
 import ru.rfdocs.wallet.ui.components.WalletBackground
-import ru.rfdocs.wallet.ui.screens.ConfirmDialog
 import ru.rfdocs.wallet.ui.theme.Palette
 
 fun Context.findFragmentActivity(): FragmentActivity? {
@@ -112,6 +111,13 @@ fun LockScreen(
         }
     }
 
+    if (showReset) {
+        LockResetDialog(
+            onDismiss = { showReset = false },
+            onConfirm = { wipeVault(context); onVaultReset() }
+        )
+    }
+
     WalletBackground {
         Column(
             modifier = Modifier
@@ -159,18 +165,5 @@ fun LockScreen(
             }
             Spacer(Modifier.height(8.dp))
         }
-    }
-
-    if (showReset) {
-        ConfirmDialog(
-            title = "Сбросить всё?",
-            message = "Данные и код доступа будут удалены.",
-            confirmText = "Удалить",
-            onConfirm = {
-                wipeVault(context)
-                onVaultReset()
-            },
-            onDismiss = { showReset = false }
-        )
     }
 }
