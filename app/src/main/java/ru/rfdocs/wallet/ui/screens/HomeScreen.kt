@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,6 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -49,6 +52,7 @@ import ru.rfdocs.wallet.ui.components.CategoryChips
 import ru.rfdocs.wallet.ui.components.GlassPanel
 import ru.rfdocs.wallet.ui.components.PlasticCard
 import ru.rfdocs.wallet.ui.components.WalletSearchField
+import ru.rfdocs.wallet.ui.theme.DocumentGradients
 import ru.rfdocs.wallet.ui.theme.Palette
 import ru.rfdocs.wallet.ui.theme.WalletTheme
 
@@ -89,11 +93,31 @@ fun HomeScreen(
         }.sortedByDescending { it.createdAt }
     }
 
+    val isDark = WalletTheme.extra.isDark
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(DocumentGradients.screenBrush(isDark))
     ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                brush = DocumentGradients.glowBrush(isDark),
+                radius = size.minDimension * 0.85f,
+                center = Offset(size.width * 0.85f, size.height * 0.04f)
+            )
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Palette.Mint.copy(alpha = if (isDark) 0.10f else 0.14f),
+                        androidx.compose.ui.graphics.Color.Transparent
+                    )
+                ),
+                radius = size.minDimension * 0.7f,
+                center = Offset(size.width * 0.05f, size.height * 0.45f)
+            )
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -137,10 +161,10 @@ fun HomeScreen(
                                 )
                             ) + slideInVertically(
                                 animationSpec = tween(
-                                    durationMillis = 300,
+                                    durationMillis = 320,
                                     delayMillis = index * 70
                                 )
-                            ) { height -> height / 4 }
+                            ) { height -> height / 3 }
                         ) {
                             PlasticCard(
                                 card = card,
@@ -209,7 +233,7 @@ private fun HomeBottomBar(
             )
             Spacer(Modifier.size(8.dp))
             Text(
-                text = "Добавить документ",
+                text = "Добавить",
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = Palette.NightBase
@@ -258,7 +282,7 @@ private fun EmptyState(
             text = if (hasAnyCards) {
                 "Измените запрос или выберите другую категорию"
             } else {
-                "Добавьте паспорт, СНИЛС, полисы и другие документы — всё хранится только на устройстве"
+                "Добавьте паспорт, СНИЛС, полисы и другие документы"
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
