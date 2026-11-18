@@ -18,8 +18,19 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBox
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,7 +42,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -41,13 +51,52 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import ru.rfdocs.wallet.data.model.DocCard
+import ru.rfdocs.wallet.data.model.DocField
+import ru.rfdocs.wallet.ui.input.FieldMasks
+import ru.rfdocs.wallet.ui.input.digitsOnly
 import ru.rfdocs.wallet.ui.theme.CardGradient
-import ru.rfdocs.wallet.ui.theme.CardGradients
-import ru.rfdocs.wallet.ui.theme.DocIcons
-import ru.rfdocs.wallet.ui.theme.MonoStyle
-import ru.rfdocs.wallet.ui.theme.MonoStyleSmall
+import ru.rfdocs.wallet.ui.theme.DocumentGradients
+import ru.rfdocs.wallet.ui.theme.MonoLarge
+import ru.rfdocs.wallet.ui.theme.MonoSmall
 import ru.rfdocs.wallet.ui.theme.WalletTheme
-import kotlin.random.Random
+
+fun documentIcon(typeKey: String): ImageVector {
+    val key = typeKey.lowercase()
+    return when {
+        key.contains("foreign") || key.contains("zagran") -> Icons.Filled.AccountBox
+        key.contains("passport") -> Icons.Filled.AccountBox
+        key.contains("snils") -> Icons.Filled.AccountCircle
+        key.contains("inn") -> Icons.Filled.Info
+        key.contains("driver") || key.contains("vu") -> Icons.Filled.Place
+        key.contains("sts") || key.contains("pts") -> Icons.Filled.Place
+        key.contains("osago") || key.contains("kasko") -> Icons.Filled.Lock
+        key.contains("oms") || key.contains("dms") -> Icons.Filled.Favorite
+        key.contains("birth") -> Icons.Filled.Star
+        key.contains("bank") -> Icons.Filled.ShoppingCart
+        key.contains("date") -> Icons.Filled.DateRange
+        else -> Icons.Filled.Settings
+    }
+}
+
+private fun primaryNumberField(card: DocCard): DocField? =
+    card.fields.firstOrNull { it.secret && it.value.isNotBlank() }
+        ?: card.fields.firstOrNull { !it.mask.isNullOrBlank() && it.value.isNotBlank() }
+        ?: card.fields.firstOrNull { it.value.isNotBlank() }
+
+fun cardNumberLine(card: DocCard, showNumber: Boolean): String {
+    val field = primaryNumberField(card) ?: return ""
+    val formatted = if (field.mask.isNullOrBlank()) {
+        field.value
+    } else {
+        FieldMasks.display(field.value, field.mask)
+    }
+
+    if (field.secret && !showNumber) {
+        val tail = digitsOnly(field.value).takeLast(4)
+        return if (tail.isEmpty()) "••••" else "•••• $tail"
+    }
+    return formatted
+}
 
 @Composable
 fun PlasticCard(
@@ -57,7 +106,7 @@ fun PlasticCard(
     compact: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
-    val gradient = CardGradients.of(card.gradientKey)
+    val gradient = DocumentGradients.forType(card.typeKey)
     val extras = WalletTheme.extra
     val haptics = LocalHapticFeedback.current
     val interaction = remember { MutableInteractionSource() }
@@ -67,6 +116,7 @@ fun PlasticCard(
         label = "cardScale"
     )
     val shape = RoundedCornerShape(if (compact) 22.dp else 26.dp)
+    val numberLine = cardNumberLine(card, showNumber)
 
     Box(
         modifier = modifier
@@ -74,8 +124,9 @@ fun PlasticCard(
                 scaleX = scale
                 scaleY = scale
             }
-            .shadow(elevation = if (compact) 8.dp else 16.dp, shape = shape, clip = false)
+            .shadow(elevation = if (compact) 10.dp else 18.dp, shape = shape, clip = false)
             .clip(shape)
+            .background(Brush.linearGradient(gradient.colors))
             .clickable(
                 interactionSource = interaction,
                 indication = null
@@ -84,18 +135,23 @@ fun PlasticCard(
                 onClick?.invoke()
             }
     ) {
-        CardSurface(
-            cardId = card.id,
-            gradient = gradient,
-            shape = shape,
-            modifier = Modifier.matchParentSize()
+        CardShine(accent = gradient.accent, modifier = Modifier.matchParentSize())
+
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .border(
+                    width = 1.dp,
+                    brush = DocumentGradients.borderBrush(gradient.accent),
+                    shape = shape
+                )
         )
 
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = if (compact) 86.dp else 176.dp)
-                .padding(if (compact) 16.dp else 22.dp)
+                .heightIn(min = if (compact) 116.dp else 190.dp)
+                .padding(if (compact) 18.dp else 22.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -111,64 +167,58 @@ fun PlasticCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    Spacer(Modifier.height(2.dp))
                     Text(
-                        text = card.category.label.uppercase(),
+                        text = "ДОКУМЕНТ РФ",
                         style = MaterialTheme.typography.labelSmall,
-                        color = gradient.accent.copy(alpha = 0.9f),
-                        maxLines = 1
+                        color = gradient.accent.copy(alpha = 0.92f)
                     )
                 }
+                Spacer(Modifier.size(12.dp))
                 TypeBadge(
-                    icon = DocIcons.of(card.iconKey),
+                    icon = documentIcon(card.typeKey),
                     accent = gradient.accent,
-                    size = if (compact) 30.dp else 38.dp
+                    size = if (compact) 38.dp else 44.dp
                 )
             }
 
-            if (compact) {
-                Spacer(modifier = Modifier.height(10.dp))
+            Spacer(Modifier.height(if (compact) 14.dp else 30.dp))
+
+            Text(
+                text = numberLine,
+                style = if (compact) MonoSmall else MonoLarge,
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            if (!compact) {
+                Spacer(Modifier.height(6.dp))
                 Text(
-                    text = numberLine(card, showNumber),
-                    style = MonoStyleSmall,
-                    color = Color.White.copy(alpha = 0.92f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            } else {
-                Spacer(modifier = Modifier.height(26.dp))
-                Text(
-                    text = numberLine(card, showNumber),
-                    style = MonoStyle,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = card.subtitle.ifBlank { card.typeKey },
+                    text = "Хранится только на этом устройстве",
                     style = MaterialTheme.typography.bodySmall,
-                    color = extras.onCardSecondary.copy(alpha = 0.75f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    color = extras.onCardSecondary.copy(alpha = 0.8f),
+                    maxLines = 1
                 )
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(Modifier.height(20.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Bottom
                 ) {
-                    Column {
-                        if (card.validUntil.isNotBlank()) {
-                            Text(
-                                text = "Действует до ${DocCard.formatDate(card.validUntil)}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.8f)
-                            )
-                        }
-                    }
+                    val expiry = expiryDateOf(card)
+                    Text(
+                        text = if (expiry != null) {
+                            "до ${expiry.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"))}"
+                        } else {
+                            "Офлайн‑кошелёк"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = extras.onCardSecondary.copy(alpha = 0.75f)
+                    )
                     Text(
                         text = "••••",
-                        style = MonoStyleSmall,
+                        style = MonoSmall,
                         color = gradient.accent.copy(alpha = 0.85f)
                     )
                 }
@@ -177,79 +227,37 @@ fun PlasticCard(
     }
 }
 
-private fun numberLine(card: DocCard, showNumber: Boolean): String {
-    val field = card.primaryMaskedField ?: return card.subtitle
-    if (!field.masked) return field.value
-    return if (showNumber) field.value else field.maskedPreview()
-}
-
 @Composable
-private fun CardSurface(
-    cardId: String,
-    gradient: CardGradient,
-    shape: Shape,
-    modifier: Modifier = Modifier
-) {
-    val seed = remember(cardId) { cardId.hashCode() }
-    Box(
-        modifier = modifier.background(
-            Brush.linearGradient(
-                colors = listOf(gradient.start, gradient.middle, gradient.end),
-                start = Offset.Zero,
-                end = Offset.Infinite
+private fun CardShine(accent: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        drawRect(
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    Color.White.copy(alpha = 0.14f),
+                    Color.Transparent,
+                    Color.White.copy(alpha = 0.05f)
+                ),
+                start = Offset(0f, 0f),
+                end = Offset(size.width, size.height)
             )
         )
-    ) {
-        Canvas(modifier = Modifier.matchParentSize()) {
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color.White.copy(alpha = 0.17f), Color.Transparent),
-                    center = Offset(size.width * 0.88f, -size.height * 0.16f),
-                    radius = size.maxDimension * 0.85f
-                ),
-                radius = size.maxDimension * 0.85f,
-                center = Offset(size.width * 0.88f, -size.height * 0.16f)
-            )
-
-            drawRect(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color.White.copy(alpha = 0.07f),
-                        Color.Transparent
-                    ),
-                    start = Offset(0f, size.height),
-                    end = Offset(size.width, 0f)
-                )
-            )
-
-            val random = Random(seed)
-            repeat(64) {
-                val x = random.nextFloat() * size.width
-                val y = random.nextFloat() * size.height
-                val radius = 0.5f + random.nextFloat() * 1.3f
-                drawCircle(
-                    color = Color.White.copy(alpha = 0.02f + random.nextFloat() * 0.035f),
-                    radius = radius,
-                    center = Offset(x, y)
-                )
-            }
-
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color.Black.copy(alpha = 0.30f), Color.Transparent),
-                    center = Offset(-size.width * 0.05f, size.height * 1.05f),
-                    radius = size.maxDimension * 0.7f
-                ),
-                radius = size.maxDimension * 0.7f,
-                center = Offset(-size.width * 0.05f, size.height * 1.05f)
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .border(1.dp, Color.White.copy(alpha = 0.16f), shape)
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(accent.copy(alpha = 0.22f), Color.Transparent),
+                center = Offset(size.width * 0.88f, size.height * 0.12f),
+                radius = size.minDimension * 0.7f
+            ),
+            radius = size.minDimension * 0.7f,
+            center = Offset(size.width * 0.88f, size.height * 0.12f)
+        )
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(Color.Black.copy(alpha = 0.35f), Color.Transparent),
+                center = Offset(size.width * 0.1f, size.height * 1.05f),
+                radius = size.minDimension * 0.9f
+            ),
+            radius = size.minDimension * 0.9f,
+            center = Offset(size.width * 0.1f, size.height * 1.05f)
         )
     }
 }
@@ -264,8 +272,12 @@ fun TypeBadge(
         modifier = Modifier
             .size(size)
             .clip(RoundedCornerShape(size / 3f))
-            .background(Color.White.copy(alpha = 0.12f))
-            .border(1.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(size / 3f)),
+            .background(Color.White.copy(alpha = 0.14f))
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = 0.26f),
+                shape = RoundedCornerShape(size / 3f)
+            ),
         contentAlignment = Alignment.Center
     ) {
         Icon(
@@ -284,4 +296,16 @@ fun GlassIconBadge(
     size: Dp = 40.dp
 ) {
     TypeBadge(icon = icon, accent = accent, size = size)
+}
+
+@Composable
+fun DocumentCardGradientPreview(
+    gradient: CardGradient,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(Brush.linearGradient(gradient.colors))
+    )
 }
