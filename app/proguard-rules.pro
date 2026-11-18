@@ -1,4 +1,4 @@
-# Сериализация kotlinx
+# Kotlinx Serialization
 -keepattributes *Annotation*, InnerClasses
 -dontnote kotlinx.serialization.**
 -keepclassmembers class kotlinx.serialization.json.** {
@@ -21,3 +21,7 @@
 # AndroidX Security / Biometric
 -keep class androidx.security.crypto.** { *; }
 -keep class androidx.biometric.** { *; }
+
+# Android Keystore
+-keep class android.security.keystore.** { *; }
+-dontwarn android.security.keystore.**
