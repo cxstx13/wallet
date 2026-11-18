@@ -13,6 +13,26 @@ import ru.rfdocs.wallet.security.BackupManager
 import ru.rfdocs.wallet.security.CryptoManager
 
 @Composable
+fun SettingsDialogs(
+    exportUri: Uri?,
+    importUri: Uri?,
+    wipeVisible: Boolean,
+    onDismissExport: () -> Unit,
+    onDismissImport: () -> Unit,
+    onDismissWipe: () -> Unit
+) {
+    if (exportUri != null) {
+        ExportBackupDialog(uri = exportUri, onDismiss = onDismissExport)
+    }
+    if (importUri != null) {
+        ImportBackupDialog(uri = importUri, onDismiss = onDismissImport)
+    }
+    if (wipeVisible) {
+        WipeVaultDialog(onDismiss = onDismissWipe)
+    }
+}
+
+@Composable
 fun ExportBackupDialog(uri: Uri?, onDismiss: () -> Unit) {
     if (uri == null) return
     val context = LocalContext.current
