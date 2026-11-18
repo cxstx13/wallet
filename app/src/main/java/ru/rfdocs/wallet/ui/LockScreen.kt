@@ -1,14 +1,12 @@
 package ru.rfdocs.wallet.ui
 
 import android.content.Context
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,6 +37,7 @@ import ru.rfdocs.wallet.security.LockManager
 import ru.rfdocs.wallet.security.PinVault
 import ru.rfdocs.wallet.security.SecurePrefs
 import ru.rfdocs.wallet.ui.components.WalletBackground
+import ru.rfdocs.wallet.ui.screens.ConfirmDialog
 import ru.rfdocs.wallet.ui.theme.Palette
 
 fun Context.findFragmentActivity(): FragmentActivity? {
@@ -163,22 +162,15 @@ fun LockScreen(
     }
 
     if (showReset) {
-        AlertDialog(
-            onDismissRequest = { showReset = false },
-            title = { Text("Сбросить хранилище?") },
-            text = { Text("Все сохранённые документы и PIN-код будут удалены с устройства.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showReset = false
-                    wipeVault(context)
-                    onVaultReset()
-                }) {
-                    Text(text = "Удалить всё", color = Palette.Danger)
-                }
+        ConfirmDialog(
+            title = "Сбросить хранилище?",
+            message = "Все документы и PIN-код будут удалены с устройства.",
+            confirmText = "Удалить",
+            onConfirm = {
+                wipeVault(context)
+                onVaultReset()
             },
-            dismissButton = {
-                TextButton(onClick = { showReset = false }) { Text("Отмена") }
-            }
+            onDismiss = { showReset = false }
         )
     }
 }
