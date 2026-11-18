@@ -4,60 +4,60 @@ import androidx.compose.ui.graphics.Color
 
 object Palette {
 
-    val Gold = Color(0xFFD9B26A)
-    val GoldSoft = Color(0xFFF0DDB4)
-    val GoldDeep = Color(0xFF9C7B33)
-
-    val RubyDark = Color(0xFF4E0C18)
-    val Ruby = Color(0xFF86182A)
-
-    val SapphireDark = Color(0xFF0A1B33)
-    val Sapphire = Color(0xFF12325C)
-    val SapphireLight = Color(0xFF2B5C9B)
-
-    val EmeraldDark = Color(0xFF063527)
-    val Emerald = Color(0xFF0F5F49)
-
-    val GraphiteDark = Color(0xFF161A21)
-    val Graphite = Color(0xFF242A33)
-    val GraphiteLight = Color(0xFF46505E)
-
-    val Anthracite = Color(0xFF101318)
-    val AnthraciteLight = Color(0xFF242A32)
-    val Amber = Color(0xFFE0A541)
-
-    val IndigoDark = Color(0xFF1B1447)
-    val Indigo = Color(0xFF342A70)
-    val Violet = Color(0xFF5B3FA8)
-
-    val TurquoiseDark = Color(0xFF053D45)
-    val Turquoise = Color(0xFF0E6E7A)
-    val Azure = Color(0xFF1E93B8)
-
-    val TerracottaDark = Color(0xFF532312)
-    val Terracotta = Color(0xFF8E4026)
-    val TerracottaLight = Color(0xFFC97B52)
-
-    val OledBlack = Color(0xFF000000)
+    // Тёмная (OLED) база
     val NightBase = Color(0xFF0B0D12)
-    val NightSurface = Color(0xFF12151C)
-    val NightSurfaceHigh = Color(0xFF1A1E27)
-    val NightOutline = Color(0xFF242A35)
+    val NightSurface = Color(0xFF141821)
+    val NightSurfaceHigh = Color(0xFF1D222D)
+    val NightOutline = Color(0xFF2B3240)
+    val TextPrimaryDark = Color(0xFFF2F4F8)
+    val TextSecondaryDark = Color(0xFF9AA3B2)
 
+    // Светлая база
     val LightBase = Color(0xFFF4F6F9)
     val LightSurface = Color(0xFFFFFFFF)
-    val LightSurfaceHigh = Color(0xFFEEF1F6)
-    val LightOutline = Color(0xFFE1E5EC)
+    val LightSurfaceHigh = Color(0xFFEDF0F5)
+    val LightOutline = Color(0xFFD8DEE7)
+    val TextPrimaryLight = Color(0xFF11151C)
+    val TextSecondaryLight = Color(0xFF5C6675)
 
-    val TextPrimaryDark = Color(0xFFF2F4F8)
-    val TextSecondaryDark = Color(0xFF98A3B3)
-    val TextPrimaryLight = Color(0xFF14181F)
-    val TextSecondaryLight = Color(0xFF6B7280)
+    // Акценты
+    val Gold = Color(0xFFE7C36A)
+    val GoldSoft = Color(0xFFF6E7C1)
+    val GoldDeep = Color(0xFF9C7A2E)
 
-    val CardOnDark = Color(0xFFF7F7F9)
-    val CardOnDarkSecondary = Color(0xFFE2E5EC)
+    val Ruby = Color(0xFF8E1B2E)
+    val RubyDeep = Color(0xFF5C0F1E)
 
+    val Sapphire = Color(0xFF1B3A78)
+    val SapphireLight = Color(0xFF5B8DEF)
+    val SapphireDeep = Color(0xFF0E1F45)
+
+    val Emerald = Color(0xFF0F6B4F)
+    val EmeraldDeep = Color(0xFF073A2A)
+
+    val Graphite = Color(0xFF2C333D)
+    val GraphiteDeep = Color(0xFF14181E)
+
+    val Anthracite = Color(0xFF1C1F24)
+    val AnthraciteDeep = Color(0xFF0E1013)
+    val Amber = Color(0xFFE0A33A)
+
+    val Indigo = Color(0xFF3B2C7A)
+    val IndigoDeep = Color(0xFF1D1440)
+
+    val Turquoise = Color(0xFF0E7C8C)
+    val Azure = Color(0xFF39B6D6)
+    val AzureDeep = Color(0xFF073B4A)
+
+    val Terracotta = Color(0xFFB4552F)
+    val TerracottaDeep = Color(0xFF6B2A14)
+
+    // Статусы
     val Danger = Color(0xFFE05252)
-    val Success = Color(0xFF3FBF7F)
-    val Warning = Color(0xFFE0A541)
+    val Warning = Color(0xFFE0A33A)
+    val Success = Color(0xFF3BB273)
+
+    // Текст на карточках
+    val CardOnDark = Color(0xFFF7F9FC)
+    val CardOnDarkMuted = Color(0xFFB9C2D0)
 }
