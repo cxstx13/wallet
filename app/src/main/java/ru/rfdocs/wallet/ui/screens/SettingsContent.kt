@@ -43,7 +43,7 @@ import ru.rfdocs.wallet.ui.PinSetupScreen
 import ru.rfdocs.wallet.ui.components.SectionTitle
 import ru.rfdocs.wallet.ui.components.WalletBackground
 
-private val MimeBackup = arrayOf("application/octet-stream", "*/*")
+private val MimeAll = arrayOf("*/*")
 
 @Composable
 private fun Toggle(
@@ -202,7 +202,7 @@ fun SettingsBody(
                 onChange = { value -> applyShotPolicy(value) }
             )
 
-            Action(title = "Сменить PIN-код") { changePin = true }
+            Action(title = "Сменить PIN-код", onClick = { changePin = true })
 
             Spacer(Modifier.height(20.dp))
             SectionTitle(text = "Оформление")
@@ -213,29 +213,35 @@ fun SettingsBody(
                 subtitle = "AMOLED",
                 checked = darkTheme,
                 enabled = true,
-                onChange = { value -> onToggleDarkTheme(value) }
+                onChange = onToggleDarkTheme
             )
 
             Spacer(Modifier.height(20.dp))
             SectionTitle(text = "Резервная копия")
             Spacer(Modifier.height(8.dp))
 
-            Action(title = "Экспорт бэкапа") {
-                if (DocRepository.cardCount() == 0) {
-                    Toast.makeText(context, "Нет документов", Toast.LENGTH_SHORT).show()
-                } else {
-                    exportLauncher.launch(BackupManager.suggestedFileName())
+            Action(
+                title = "Экспорт бэкапа",
+                onClick = {
+                    if (DocRepository.cardCount() == 0) {
+                        Toast.makeText(context, "Нет документов", Toast.LENGTH_SHORT).show()
+                    } else {
+                        exportLauncher.launch(BackupManager.suggestedFileName())
+                    }
                 }
-            }
+            )
 
-            Action(title = "Импорт из бэкапа") { importLauncher.launch(MimeBackup) }
+            Action(
+                title = "Импорт из бэкапа",
+                onClick = { importLauncher.launch(MimeAll) }
+            )
 
             Spacer(Modifier.height(20.dp))
             SectionTitle(text = "Прочее")
             Spacer(Modifier.height(8.dp))
 
-            Action(title = "О приложении") { onAbout() }
-            Action(title = "Удалить все документы") { wipe = true }
+            Action(title = "О приложении", onClick = onAbout)
+            Action(title = "Удалить все документы", onClick = { wipe = true })
 
             Spacer(Modifier.height(32.dp))
         }
