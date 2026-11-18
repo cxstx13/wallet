@@ -13,20 +13,22 @@ android {
         applicationId = "ru.rfdocs.wallet"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 4
+        versionName = "4.0.0"
         vectorDrawables { useSupportLibrary = true }
     }
 
     buildTypes {
         debug {
             isMinifyEnabled = false
-            applicationIdSuffix = ""
         }
         release {
             isMinifyEnabled = false
             isShrinkResources = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -70,15 +72,16 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
-    implementation("androidx.navigation:navigation-compose:2.8.2")
 
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
+    implementation("androidx.fragment:fragment-ktx:1.8.3")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("androidx.biometric:biometric:1.1.0")
 
