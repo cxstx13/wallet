@@ -65,10 +65,19 @@ fun AppRoot(viewModel: WalletViewModel = viewModel()) {
             return@WalletTheme
         }
 
+        fun leaveEdit(cardId: String?) {
+            screen = if (cardId != null) Screen.Detail(cardId) else Screen.TemplatePicker
+        }
+
         BackHandler(enabled = screen != Screen.Home) {
             screen = when (val current = screen) {
                 is Screen.Detail -> Screen.Home
-                is Screen.Edit -> if (current.cardId != null) Screen.Detail(current.cardId) else Screen.Home
+                is Screen.Edit -> if (current.cardId != null) {
+                    Screen.Detail(current.cardId)
+                } else {
+                    Screen.TemplatePicker
+                }
+
                 is Screen.TemplatePicker -> Screen.Home
                 is Screen.Settings -> Screen.Home
                 is Screen.About -> Screen.Settings
@@ -108,14 +117,14 @@ fun AppRoot(viewModel: WalletViewModel = viewModel()) {
                     viewModel = viewModel,
                     cardId = current.cardId,
                     typeKey = current.typeKey,
-                    onBack = {
+                    onBack = { leaveEdit(current.cardId) },
+                    onDone = { savedId ->
                         screen = if (current.cardId != null) {
-                            Screen.Detail(current.cardId)
+                            Screen.Detail(savedId)
                         } else {
-                            Screen.Home
+                            Screen.Detail(savedId)
                         }
-                    },
-                    onDone = { savedId -> screen = Screen.Detail(savedId) }
+                    }
                 )
 
                 is Screen.Settings -> SettingsScreen(
