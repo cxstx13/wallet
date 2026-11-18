@@ -18,17 +18,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Visibility
-import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,9 +51,17 @@ import androidx.compose.ui.unit.dp
 import ru.rfdocs.wallet.data.model.DocCard
 import ru.rfdocs.wallet.data.model.DocCategory
 import ru.rfdocs.wallet.data.model.DocField
-import ru.rfdocs.wallet.ui.theme.MonoStyle
-import ru.rfdocs.wallet.ui.theme.Palette
+import ru.rfdocs.wallet.ui.input.DateMask
+import ru.rfdocs.wallet.ui.input.FieldMasks
+import ru.rfdocs.wallet.ui.input.Masks
+import ru.rfdocs.wallet.ui.input.digitsOnly
+import ru.rfdocs.wallet.ui.theme.MonoSmall
 import ru.rfdocs.wallet.ui.theme.WalletTheme
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+
+private val ExpiryPattern: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
 
 fun copyText(context: Context, text: String, message: String = "Скопировано") {
     if (text.isBlank()) return
@@ -98,6 +107,7 @@ fun WalletSearchField(
 ) {
     val extras = WalletTheme.extra
     val haptics = LocalHapticFeedback.current
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -108,12 +118,12 @@ fun WalletSearchField(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = Icons.Rounded.Search,
+            imageVector = Icons.Filled.Search,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp)
         )
-        Spacer(modifier = Modifier.size(10.dp))
+        Spacer(Modifier.width(10.dp))
         Box(modifier = Modifier.weight(1f)) {
             if (query.isEmpty()) {
                 Text(
@@ -129,7 +139,7 @@ fun WalletSearchField(
                 textStyle = MaterialTheme.typography.bodyMedium.copy(
                     color = MaterialTheme.colorScheme.onSurface
                 ),
-                cursorBrush = SolidColor(Palette.Gold),
+                cursorBrush = SolidColor(WalletTheme.extra.monoAccent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -140,10 +150,10 @@ fun WalletSearchField(
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     onQueryChange("")
                 },
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(26.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Close,
+                    imageVector = Icons.Filled.Clear,
                     contentDescription = "Очистить",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp)
@@ -160,6 +170,7 @@ fun CategoryChips(
     modifier: Modifier = Modifier
 ) {
     val haptics = LocalHapticFeedback.current
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -188,15 +199,24 @@ fun CategoryChips(
 }
 
 @Composable
-private fun ChipItem(text: String, selectedState: Boolean, onClick: () -> Unit) {
+private fun ChipItem(
+    text: String,
+    selectedState: Boolean,
+    onClick: () -> Unit
+) {
     val extras = WalletTheme.extra
     val background = if (selectedState) extras.chipSelectedFill else extras.chipFill
     val foreground = if (selectedState) extras.chipSelectedText else MaterialTheme.colorScheme.onSurface
+
     Box(
         modifier = Modifier
             .clip(CircleShape)
             .background(background)
-            .border(1.dp, if (selectedState) extras.chipSelectedFill else extras.fieldStroke, CircleShape)
+            .border(
+                width = 1.dp,
+                color = if (selectedState) extras.chipSelectedFill else extras.pillStroke,
+                shape = CircleShape
+            )
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 9.dp)
     ) {
@@ -220,10 +240,17 @@ fun FieldRow(
     val haptics = LocalHapticFeedback.current
     val extras = WalletTheme.extra
 
-    val displayText = when {
-        field.value.isBlank() -> field.placeholder.ifBlank { "—" }
-        field.masked && !revealed -> field.maskedPreview()
-        else -> fieldDisplayValue(field)
+    val isMasked = field.secret || (!field.mask.isNullOrBlank() && field.mask != Masks.PHONE)
+    val fullValue = if (field.mask.isNullOrBlank()) field.value else FieldMasks.display(field.value, field.mask)
+
+    val display = when {
+        field.value.isBlank() -> "—"
+        isMasked && !revealed -> {
+            val tail = digitsOnly(field.value).takeLast(4)
+            if (tail.isEmpty()) "••••" else "•••• $tail"
+        }
+
+        else -> fullValue
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
@@ -232,25 +259,21 @@ fun FieldRow(
             style = MaterialTheme.typography.labelSmall,
             color = extras.fieldLabel
         )
-        Spacer(modifier = Modifier.height(5.dp))
+        Spacer(Modifier.height(5.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = displayText,
-                style = when {
-                    field.mono || field.masked || field.kind == ru.rfdocs.wallet.data.model.FieldKind.DATE ->
-                        MonoStyle
-                    else -> MaterialTheme.typography.bodyLarge
-                },
+                text = display,
+                style = if (isMasked || !field.mask.isNullOrBlank()) MonoSmall else MaterialTheme.typography.bodyLarge,
                 color = if (field.value.isBlank()) {
                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
                 } else {
                     MaterialTheme.colorScheme.onSurface
                 },
-                maxLines = if (field.multiline) 12 else 3,
+                maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
-            if (field.masked && field.value.isNotBlank()) {
+            if (isMasked && field.value.isNotBlank()) {
                 IconButton(
                     onClick = {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -259,10 +282,10 @@ fun FieldRow(
                     modifier = Modifier.size(34.dp)
                 ) {
                     Icon(
-                        imageVector = if (revealed) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                        imageVector = if (revealed) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
                         contentDescription = if (revealed) "Скрыть" else "Показать",
                         tint = extras.monoAccent,
-                        modifier = Modifier.size(19.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -270,25 +293,25 @@ fun FieldRow(
                 IconButton(
                     onClick = {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        copyText(context, fieldDisplayValue(field), "Скопировано: ${field.label}")
+                        copyText(context, fullValue, "Скопировано: ${field.label}")
                     },
                     modifier = Modifier.size(34.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.ContentCopy,
+                        imageVector = Icons.Filled.ContentCopy,
                         contentDescription = "Копировать",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                 }
             }
         }
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(Modifier.height(12.dp))
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(1.dp)
-                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
         )
     }
 }
@@ -303,14 +326,14 @@ fun ActionPill(
 ) {
     val extras = WalletTheme.extra
     val haptics = LocalHapticFeedback.current
-    val background = if (filled) extras.chipSelectedFill else extras.pillFill
-    val foreground = if (filled) extras.chipSelectedText else extras.pillText
+    val background = if (filled) extras.monoAccent else extras.pillFill
+    val foreground = if (filled) MaterialTheme.colorScheme.background else extras.pillText
 
     Row(
         modifier = modifier
             .clip(CircleShape)
             .background(background)
-            .border(1.dp, if (filled) extras.chipSelectedFill else extras.pillStroke, CircleShape)
+            .border(1.dp, extras.pillStroke, CircleShape)
             .clickable {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 onClick()
@@ -334,15 +357,36 @@ fun ActionPill(
     }
 }
 
+fun expiryDateOf(card: DocCard): LocalDate? {
+    val keywords = listOf("до", "по", "окончания", "срок")
+    val field = card.fields.firstOrNull { candidate ->
+        val label = candidate.label.lowercase()
+        candidate.mask == Masks.DATE && keywords.any { label.contains(it) }
+    } ?: return null
+
+    val iso = DateMask.toIso(field.value)
+    if (iso.isBlank()) return null
+    return runCatching { LocalDate.parse(iso) }.getOrNull()
+}
+
 @Composable
 fun ExpiryBanner(card: DocCard, modifier: Modifier = Modifier) {
-    if (card.validUntil.isBlank()) return
-    val level = card.expiryLevel()
-    val color = when (level) {
-        2 -> Palette.Danger
-        1 -> Palette.Warning
-        else -> Palette.Success
+    val date = expiryDateOf(card) ?: return
+    val days = ChronoUnit.DAYS.between(LocalDate.now(), date)
+
+    val color = when {
+        days < 0 -> ru.rfdocs.wallet.ui.theme.Palette.Danger
+        days <= 30 -> ru.rfdocs.wallet.ui.theme.Palette.Warning
+        else -> ru.rfdocs.wallet.ui.theme.Palette.Success
     }
+
+    val text = when {
+        days < 0 -> "Срок истёк ${date.format(ExpiryPattern)}"
+        days == 0L -> "Истекает сегодня"
+        days <= 30 -> "Осталось $days дн."
+        else -> "Действует до ${date.format(ExpiryPattern)}"
+    }
+
     Row(
         modifier = modifier
             .clip(CircleShape)
@@ -357,9 +401,9 @@ fun ExpiryBanner(card: DocCard, modifier: Modifier = Modifier) {
                 .clip(CircleShape)
                 .background(color)
         )
-        Spacer(modifier = Modifier.size(10.dp))
+        Spacer(Modifier.width(10.dp))
         Text(
-            text = card.expiryLabel(),
+            text = text,
             style = MaterialTheme.typography.labelLarge,
             color = color
         )
