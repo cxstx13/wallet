@@ -92,56 +92,62 @@ data class WalletExtraColors(
 )
 
 private val DarkExtras = WalletExtraColors(
-    glassFill = Color(0xFF141821),
-    glassBorder = Color(0xFF232A36),
-    glassHighlight = Color(0x14FFFFFF),
-    shadow = Color(0xCC000000),
+    glassFill = Color(0xFF161B24).copy(alpha = 0.72f),
+    glassBorder = Color.White.copy(alpha = 0.10f),
+    glassHighlight = Color.White.copy(alpha = 0.06f),
+    shadow = Color.Black.copy(alpha = 0.45f),
     onCardPrimary = Palette.CardOnDark,
-    onCardSecondary = Palette.CardOnDarkSecondary,
-    monoAccent = Palette.GoldSoft,
-    chipFill = Color(0xFF171B23),
-    chipSelectedFill = Palette.CardOnDark,
+    onCardSecondary = Palette.CardOnDarkMuted,
+    monoAccent = Palette.Gold,
+    chipFill = Color(0xFF1B212B),
+    chipSelectedFill = Palette.Gold,
     chipSelectedText = Palette.NightBase,
-    fieldFill = Color(0xFF141821),
-    fieldStroke = Color(0xFF212734),
+    fieldFill = Color(0xFF171C26),
+    fieldStroke = Color.White.copy(alpha = 0.08f),
     fieldLabel = Palette.TextSecondaryDark,
-    pillFill = Color(0xFF171B23),
-    pillStroke = Color(0xFF252C39),
+    pillFill = Color(0xFF1B212B),
+    pillStroke = Color.White.copy(alpha = 0.10f),
     pillText = Palette.TextPrimaryDark,
-    screenTop = Palette.NightBase,
+    screenTop = Color(0xFF11151D),
     screenBottom = Palette.NightBase,
     isDark = true
 )
 
 private val LightExtras = WalletExtraColors(
-    glassFill = Color(0xFFFFFFFF),
-    glassBorder = Color(0xFFE3E8EF),
-    glassHighlight = Color(0x33000000),
-    shadow = Color(0x1F1F2937),
-    onCardPrimary = Color.White,
-    onCardSecondary = Color(0xFFF0F2F6),
-    monoAccent = Palette.GoldSoft,
-    chipFill = Color(0xFFFFFFFF),
-    chipSelectedFill = Palette.TextPrimaryLight,
+    glassFill = Color.White.copy(alpha = 0.88f),
+    glassBorder = Color(0xFF11151C).copy(alpha = 0.08f),
+    glassHighlight = Color.White.copy(alpha = 0.60f),
+    shadow = Color(0xFF11151C).copy(alpha = 0.12f),
+    onCardPrimary = Palette.CardOnDark,
+    onCardSecondary = Palette.CardOnDarkMuted,
+    monoAccent = Palette.Ruby,
+    chipFill = Color(0xFFE9EDF3),
+    chipSelectedFill = Palette.Ruby,
     chipSelectedText = Color.White,
-    fieldFill = Color(0xFFFFFFFF),
-    fieldStroke = Color(0xFFE3E8EF),
+    fieldFill = Color(0xFFEFF2F7),
+    fieldStroke = Color(0xFF11151C).copy(alpha = 0.06f),
     fieldLabel = Palette.TextSecondaryLight,
-    pillFill = Color(0xFFFFFFFF),
-    pillStroke = Color(0xFFE3E8EF),
+    pillFill = Color(0xFFE9EDF3),
+    pillStroke = Color(0xFF11151C).copy(alpha = 0.08f),
     pillText = Palette.TextPrimaryLight,
-    screenTop = Palette.LightBase,
+    screenTop = Color(0xFFF7F9FC),
     screenBottom = Palette.LightBase,
     isDark = false
 )
 
-val LocalWalletExtra = staticCompositionLocalOf { DarkExtras }
+val LocalWalletExtraColors = staticCompositionLocalOf { DarkExtras }
 
 object WalletTheme {
+
     val extra: WalletExtraColors
         @Composable
         @ReadOnlyComposable
-        get() = LocalWalletExtra.current
+        get() = LocalWalletExtraColors.current
+
+    val shapes: Shapes
+        @Composable
+        @ReadOnlyComposable
+        get() = MaterialTheme.shapes
 }
 
 @Composable
@@ -149,21 +155,24 @@ fun WalletTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
+    val colorScheme = if (darkTheme) DarkColors else LightColors
     val extras = if (darkTheme) DarkExtras else LightExtras
-
     val view = LocalView.current
+
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as Activity).window
-            val controller = WindowCompat.getInsetsController(window, view)
-            controller.isAppearanceLightStatusBars = !darkTheme
-            controller.isAppearanceLightNavigationBars = !darkTheme
+            val window = (view.context as? Activity)?.window
+            if (window != null) {
+                val controller = WindowCompat.getInsetsController(window, view)
+                controller.isAppearanceLightStatusBars = !darkTheme
+                controller.isAppearanceLightNavigationBars = !darkTheme
+            }
         }
     }
 
-    CompositionLocalProvider(LocalWalletExtra provides extras) {
+    CompositionLocalProvider(LocalWalletExtraColors provides extras) {
         MaterialTheme(
-            colorScheme = if (darkTheme) DarkColors else LightColors,
+            colorScheme = colorScheme,
             typography = WalletTypography,
             shapes = WalletShapes,
             content = content
