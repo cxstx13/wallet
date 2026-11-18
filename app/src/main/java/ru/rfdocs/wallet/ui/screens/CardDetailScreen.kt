@@ -2,51 +2,53 @@ package ru.rfdocs.wallet.ui.screens
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AddPhotoAlternate
-import androidx.compose.material.icons.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Call
-import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.QrCode2
-import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.Visibility
-import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import ru.rfdocs.wallet.data.model.FieldKind
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import ru.rfdocs.wallet.data.repo.DocRepository
 import ru.rfdocs.wallet.data.repo.PhotoStore
 import ru.rfdocs.wallet.ui.WalletViewModel
 import ru.rfdocs.wallet.ui.components.ExpiryBanner
@@ -55,9 +57,10 @@ import ru.rfdocs.wallet.ui.components.GlassPanel
 import ru.rfdocs.wallet.ui.components.PlasticCard
 import ru.rfdocs.wallet.ui.components.SectionTitle
 import ru.rfdocs.wallet.ui.components.copyText
-import ru.rfdocs.wallet.ui.components.fieldDisplayValue
+import ru.rfdocs.wallet.ui.input.FieldMasks
 import ru.rfdocs.wallet.ui.input.PhoneMask
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardDetailScreen(
     viewModel: WalletViewModel,
@@ -67,25 +70,37 @@ fun CardDetailScreen(
 ) {
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
-    val allCards by viewModel.cards.collectAsStateWithLifecycle()
-    val card = allCards.firstOrNull { it.id == cardId }
+    val scope = rememberCoroutineScope()
+    val cards by DocRepository.cards.collectAsState()
+    val card = cards.firstOrNull { it.id == cardId }
 
-    var revealedIds by remember(cardId) { mutableStateOf(setOf<String>()) }
+    var revealedKeys by remember(cardId) { mutableStateOf(setOf<String>()) }
     var showNumber by remember(cardId) { mutableStateOf(false) }
     var showQr by remember { mutableStateOf(false) }
     var showShare by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
 
-    val pickImage = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        if (uri != null && card != null) {
-            val bytes = runCatching {
-                context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-            }.getOrNull()
-            if (bytes != null) {
-                val photoId = PhotoStore.save(context, bytes)
-                viewModel.saveCard(card.copy(photoIds = card.photoIds + photoId))
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val saved = withContext(Dispatchers.IO) {
+                val bytes = runCatching {
+                    context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }.getOrNull()
+                if (bytes == null || bytes.isEmpty()) {
+                    null
+                } else {
+                    PhotoStore.save(context, bytes)
+                }
+            } ?: return@launch
+
+            DocRepository.get(cardId)?.let { current ->
+                DocRepository.upsert(
+                    current.copy(
+                        photoIds = current.photoIds + saved,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                )
             }
         }
     }
@@ -101,194 +116,186 @@ fun CardDetailScreen(
         return
     }
 
-    val primaryNumber = card.primaryMaskedField?.let { fieldDisplayValue(it) }.orEmpty()
-    val phoneField = card.fields.firstOrNull {
-        it.kind == FieldKind.PHONE || it.label.contains("Телефон", ignoreCase = true)
-    }
-    val phoneDigits = card.phone.ifBlank { phoneField?.value.orEmpty() }
+    val primaryField = card.fields.firstOrNull { it.value.isNotBlank() }
+    val phoneField = card.fields.firstOrNull { it.phone && it.value.isNotBlank() }
 
-    val pills = buildList {
+    val actions = buildList {
         add(
-            PillSpec(
-                text = if (showNumber) "Скрыть" else "Показать",
-                icon = if (showNumber) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                filled = false,
-                onClick = { showNumber = !showNumber }
-            )
-        )
-        add(
-            PillSpec(
-                text = "Копировать",
-                icon = Icons.Rounded.ContentCopy,
-                filled = false,
+            CardAction(
+                label = "Копировать",
+                icon = Icons.Filled.ContentCopy,
                 onClick = {
-                    if (primaryNumber.isNotBlank()) {
-                        copyText(context, primaryNumber, "Номер скопирован")
-                    }
+                    val value = primaryField?.let { field ->
+                        if (field.mask.isNullOrBlank()) {
+                            field.value
+                        } else {
+                            FieldMasks.display(field.value, field.mask)
+                        }
+                    }.orEmpty()
+                    copyText(context, value, "Скопировано")
                 }
             )
         )
         add(
-            PillSpec(
-                text = "Поделиться",
-                icon = Icons.Rounded.Share,
-                filled = false,
+            CardAction(
+                label = "Поделиться",
+                icon = Icons.Filled.Share,
                 onClick = { showShare = true }
             )
         )
         add(
-            PillSpec(
-                text = "QR",
-                icon = Icons.Rounded.QrCode2,
-                filled = false,
+            CardAction(
+                label = "QR-код",
+                icon = Icons.Filled.Info,
                 onClick = { showQr = true }
             )
         )
         add(
-            PillSpec(
-                text = "Фото",
-                icon = Icons.Rounded.AddPhotoAlternate,
-                filled = false,
-                onClick = {
-                    pickImage.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                }
+            CardAction(
+                label = "Фото",
+                icon = Icons.Filled.Add,
+                onClick = { picker.launch("image/*") }
             )
         )
-        if (phoneDigits.isNotBlank()) {
+        if (phoneField != null) {
             add(
-                PillSpec(
-                    text = "Позвонить",
-                    icon = Icons.Rounded.Call,
-                    filled = true,
-                    onClick = {
-                        val dial = PhoneMask.forDial(phoneDigits)
-                        if (dial.isNotBlank()) {
-                            dialPhone(context, dial)
-                        }
-                    }
+                CardAction(
+                    label = "Позвонить",
+                    icon = Icons.Filled.Call,
+                    onClick = { dialPhone(context, PhoneMask.toDialable(phoneField.value)) }
                 )
             )
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = card.title,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Назад"
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showNumber = !showNumber
+                        }
+                    ) {
+                        Icon(
+                            imageVector = if (showNumber) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = if (showNumber) "Скрыть номер" else "Показать номер"
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onEdit(card.id)
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = "Изменить"
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showDelete = true
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = "Удалить"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        floatingActionButton = {
+            CardActionsFab(
+                actions = actions,
+                modifier = Modifier.padding(8.dp)
+            )
+        }
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .statusBarsPadding()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = 16.dp)
         ) {
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.Rounded.ArrowBack,
-                        contentDescription = "Назад",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Text(
-                    text = card.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    showDelete = true
-                }) {
-                    Icon(
-                        imageVector = Icons.Rounded.Delete,
-                        contentDescription = "Удалить",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                IconButton(onClick = {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onEdit(card.id)
-                }) {
-                    Icon(
-                        imageVector = Icons.Rounded.Edit,
-                        contentDescription = "Изменить",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            PlasticCard(
+                card = card,
+                modifier = Modifier.fillMaxWidth(),
+                showNumber = showNumber
+            )
 
-            Spacer(modifier = Modifier.height(10.dp))
-            PlasticCard(card = card, showNumber = showNumber)
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (card.validUntil.isNotBlank()) {
+            if (expiryDateOfCard(card) != null) {
+                Spacer(Modifier.height(16.dp))
                 ExpiryBanner(card = card)
-                Spacer(modifier = Modifier.height(16.dp))
             }
 
+            Spacer(Modifier.height(22.dp))
             SectionTitle(text = "Данные документа")
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(Modifier.height(12.dp))
             GlassPanel(modifier = Modifier.fillMaxWidth()) {
-                card.fields.forEach { field ->
-                    FieldRow(
-                        field = field,
-                        revealed = revealedIds.contains(field.id),
-                        onToggleReveal = {
-                            revealedIds = if (revealedIds.contains(field.id)) {
-                                revealedIds - field.id
-                            } else {
-                                revealedIds + field.id
-                            }
-                        }
-                    )
-                }
                 if (card.fields.isEmpty()) {
                     Text(
                         text = "Поля не заполнены",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-            }
-
-            if (card.note.isNotBlank()) {
-                Spacer(modifier = Modifier.height(20.dp))
-                SectionTitle(text = "Заметка")
-                Spacer(modifier = Modifier.height(10.dp))
-                GlassPanel(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = card.note,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                } else {
+                    card.fields.forEach { field ->
+                        FieldRow(
+                            field = field,
+                            revealed = revealedKeys.contains(field.key),
+                            onToggleReveal = {
+                                revealedKeys = if (revealedKeys.contains(field.key)) {
+                                    revealedKeys - field.key
+                                } else {
+                                    revealedKeys + field.key
+                                }
+                            }
+                        )
+                    }
                 }
             }
 
             CardPhotosSection(
                 card = card,
                 onRemovePhoto = { photoId ->
-                    viewModel.saveCard(card.copy(photoIds = card.photoIds - photoId))
+                    DocRepository.get(card.id)?.let { current ->
+                        DocRepository.upsert(
+                            current.copy(
+                                photoIds = current.photoIds - photoId,
+                                updatedAt = System.currentTimeMillis()
+                            )
+                        )
+                    }
                 }
             )
 
-            Spacer(modifier = Modifier.height(150.dp))
+            Spacer(Modifier.height(120.dp))
         }
-
-        CardDetailBottomBar(
-            pills = pills,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-        )
     }
 
     if (showQr) {
@@ -304,9 +311,12 @@ fun CardDetailScreen(
             card = card,
             onDismiss = { showDelete = false },
             onConfirm = {
-                viewModel.deleteCard(card.id)
+                DocRepository.delete(card.id)
                 onBack()
             }
         )
     }
 }
+
+private fun expiryDateOfCard(card: ru.rfdocs.wallet.data.model.DocCard): java.time.LocalDate? =
+    ru.rfdocs.wallet.ui.components.expiryDateOf(card)
