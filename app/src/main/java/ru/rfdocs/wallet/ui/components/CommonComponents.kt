@@ -4,6 +4,9 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,10 +38,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -56,6 +61,7 @@ import ru.rfdocs.wallet.ui.input.FieldMasks
 import ru.rfdocs.wallet.ui.input.Masks
 import ru.rfdocs.wallet.ui.input.digitsOnly
 import ru.rfdocs.wallet.ui.theme.MonoSmall
+import ru.rfdocs.wallet.ui.theme.Palette
 import ru.rfdocs.wallet.ui.theme.WalletTheme
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -139,7 +145,7 @@ fun WalletSearchField(
                 textStyle = MaterialTheme.typography.bodyMedium.copy(
                     color = MaterialTheme.colorScheme.onSurface
                 ),
-                cursorBrush = SolidColor(WalletTheme.extra.monoAccent),
+                cursorBrush = SolidColor(extras.monoAccent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -205,16 +211,33 @@ private fun ChipItem(
     onClick: () -> Unit
 ) {
     val extras = WalletTheme.extra
-    val background = if (selectedState) extras.chipSelectedFill else extras.chipFill
-    val foreground = if (selectedState) extras.chipSelectedText else MaterialTheme.colorScheme.onSurface
+    val background by animateColorAsState(
+        targetValue = if (selectedState) extras.chipSelectedFill else extras.chipFill,
+        animationSpec = tween(220),
+        label = "chipBackground"
+    )
+    val foreground by animateColorAsState(
+        targetValue = if (selectedState) extras.chipSelectedText else MaterialTheme.colorScheme.onSurface,
+        animationSpec = tween(220),
+        label = "chipForeground"
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (selectedState) 1.04f else 1f,
+        animationSpec = tween(180),
+        label = "chipScale"
+    )
 
     Box(
         modifier = Modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .clip(CircleShape)
             .background(background)
             .border(
                 width = 1.dp,
-                color = if (selectedState) extras.chipSelectedFill else extras.pillStroke,
+                color = if (selectedState) background else extras.pillStroke,
                 shape = CircleShape
             )
             .clickable { onClick() }
@@ -326,8 +349,16 @@ fun ActionPill(
 ) {
     val extras = WalletTheme.extra
     val haptics = LocalHapticFeedback.current
-    val background = if (filled) extras.monoAccent else extras.pillFill
-    val foreground = if (filled) MaterialTheme.colorScheme.background else extras.pillText
+    val background by animateColorAsState(
+        targetValue = if (filled) extras.monoAccent else extras.pillFill,
+        animationSpec = tween(200),
+        label = "pillBackground"
+    )
+    val foreground by animateColorAsState(
+        targetValue = if (filled) Palette.NightBase else extras.pillText,
+        animationSpec = tween(200),
+        label = "pillForeground"
+    )
 
     Row(
         modifier = modifier
@@ -375,9 +406,9 @@ fun ExpiryBanner(card: DocCard, modifier: Modifier = Modifier) {
     val days = ChronoUnit.DAYS.between(LocalDate.now(), date)
 
     val color = when {
-        days < 0 -> ru.rfdocs.wallet.ui.theme.Palette.Danger
-        days <= 30 -> ru.rfdocs.wallet.ui.theme.Palette.Warning
-        else -> ru.rfdocs.wallet.ui.theme.Palette.Success
+        days < 0 -> Palette.Danger
+        days <= 30 -> Palette.Warning
+        else -> Palette.Success
     }
 
     val text = when {
