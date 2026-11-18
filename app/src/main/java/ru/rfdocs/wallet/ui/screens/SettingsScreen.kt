@@ -30,9 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,12 +47,12 @@ import ru.rfdocs.wallet.ui.components.WalletBackground
 private val BackupMimeTypes = arrayOf("application/octet-stream", "*/*")
 
 @Composable
-private fun SwitchRow(
+private fun ToggleLine(
     title: String,
     subtitle: String,
     checked: Boolean,
     enabled: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onToggle: (Boolean) -> Unit
 ) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
         Column(modifier = Modifier.weight(1f)) {
@@ -69,15 +67,12 @@ private fun SwitchRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+        Switch(checked = checked, onCheckedChange = onToggle, enabled = enabled)
     }
 }
 
 @Composable
-private fun NavRow(
-    title: String,
-    onClick: () -> Unit
-) {
+private fun ActionLine(title: String, onClick: () -> Unit) {
     Text(
         text = title,
         style = MaterialTheme.typography.titleMedium,
@@ -99,49 +94,41 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val view = LocalView.current
-    val haptics = LocalHapticFeedback.current
-
     val activity = view.context as? Activity
 
     var biometricEnabled by remember { mutableStateOf(SecurePrefs.isBiometricEnabled(context)) }
-    var screenshotBlocked by remember { mutableStateOf(SecurePrefs.isScreenshotBlocked(context)) }
+    var screenBlocked by remember { mutableStateOf(SecurePrefs.isScreenshotBlocked(context)) }
     var showPinChange by remember { mutableStateOf(false) }
     var showWipe by remember { mutableStateOf(false) }
-    var pendingExportUri by remember { mutableStateOf<Uri?>(null) }
-    var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
+    var exportUri by remember { mutableStateOf<Uri?>(null) }
+    var importUri by remember { mutableStateOf<Uri?>(null) }
 
     val biometricAvailable = remember { BiometricHelper.isBiometricAvailable(context) }
 
-    fun applyScreenshotPolicy(enabled: Boolean) {
+    fun applyScreenPolicy(enabled: Boolean) {
         SecurePrefs.setScreenshotBlocked(context, enabled)
-        screenshotBlocked = enabled
-        val window = activity?.window
-        if (window != null) {
-            if (enabled) {
-                window.setFlags(
-                    WindowManager.LayoutParams.FLAG_SECURE,
-                    WindowManager.LayoutParams.FLAG_SECURE
-                )
-            } else {
-                window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-            }
+        screenBlocked = enabled
+        val window = activity?.window ?: return
+        if (enabled) {
+            window.setFlags(
+                WindowManager.LayoutParams.FLAG_SECURE,
+                WindowManager.LayoutParams.FLAG_SECURE
+            )
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
     }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { uri: Uri? ->
-        if (uri != null) {
-            pendingExportUri = uri
-        }
+        exportUri = uri
     }
 
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
-        if (uri != null) {
-            pendingImportUri = uri
-        }
+        importUri = uri
     }
 
     if (showPinChange) {
@@ -159,11 +146,11 @@ fun SettingsScreen(
     }
 
     SettingsDialogs(
-        exportUri = pendingExportUri,
-        importUri = pendingImportUri,
+        exportUri = exportUri,
+        importUri = importUri,
         wipeVisible = showWipe,
-        onDismissExport = { pendingExportUri = null },
-        onDismissImport = { pendingImportUri = null },
+        onDismissExport = { exportUri = null },
+        onDismissImport = { importUri = null },
         onDismissWipe = { showWipe = false }
     )
 
@@ -198,95 +185,61 @@ fun SettingsScreen(
             SectionTitle(text = "Безопасность")
             Spacer(Modifier.height(8.dp))
 
-            SwitchRow(
+            ToggleLine(
                 title = "Вход по отпечатку",
                 subtitle = if (biometricAvailable) "Быстрый вход" else "Не настроен",
                 checked = biometricEnabled,
                 enabled = biometricAvailable,
-                onCheckedChange = { value ->
-                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onToggle = { value ->
                     biometricEnabled = value
                     SecurePrefs.setBiometricEnabled(context, value)
                 }
             )
 
-            SwitchRow(
+            ToggleLine(
                 title = "Запрет скриншотов",
-                subtitle = if (screenshotBlocked) "Заблокировано" else "Разрешено",
-                checked = screenshotBlocked,
+                subtitle = if (screenBlocked) "Заблокировано" else "Разрешено",
+                checked = screenBlocked,
                 enabled = true,
-                onCheckedChange = { value ->
-                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    applyScreenshotPolicy(value)
-                }
+                onToggle = { value -> applyScreenPolicy(value) }
             )
 
-            NavRow(
-                title = "Сменить PIN-код",
-                onClick = {
-                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    showPinChange = true
-                }
-            )
+            ActionLine(title = "Сменить PIN-код") { showPinChange = true }
 
             Spacer(Modifier.height(20.dp))
             SectionTitle(text = "Оформление")
             Spacer(Modifier.height(8.dp))
 
-            SwitchRow(
+            ToggleLine(
                 title = "Тёмная тема",
                 subtitle = "AMOLED",
                 checked = darkTheme,
                 enabled = true,
-                onCheckedChange = { value ->
-                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onToggleDarkTheme(value)
-                }
+                onToggle = { value -> onToggleDarkTheme(value) }
             )
 
             Spacer(Modifier.height(20.dp))
             SectionTitle(text = "Резервная копия")
             Spacer(Modifier.height(8.dp))
 
-            NavRow(
-                title = "Экспорт бэкапа",
-                onClick = {
-                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    if (DocRepository.cardCount() == 0) {
-                        Toast.makeText(context, "Нет документов", Toast.LENGTH_SHORT).show()
-                    } else {
-                        exportLauncher.launch(BackupManager.suggestedFileName())
-                    }
+            ActionLine(title = "Экспорт бэкапа") {
+                if (DocRepository.cardCount() == 0) {
+                    Toast.makeText(context, "Нет документов", Toast.LENGTH_SHORT).show()
+                } else {
+                    exportLauncher.launch(BackupManager.suggestedFileName())
                 }
-            )
+            }
 
-            NavRow(
-                title = "Импорт из бэкапа",
-                onClick = {
-                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    importLauncher.launch(BackupMimeTypes)
-                }
-            )
+            ActionLine(title = "Импорт из бэкапа") {
+                importLauncher.launch(BackupMimeTypes)
+            }
 
             Spacer(Modifier.height(20.dp))
             SectionTitle(text = "Прочее")
             Spacer(Modifier.height(8.dp))
 
-            NavRow(
-                title = "О приложении",
-                onClick = {
-                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onAbout()
-                }
-            )
-
-            NavRow(
-                title = "Удалить все документы",
-                onClick = {
-                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    showWipe = true
-                }
-            )
+            ActionLine(title = "О приложении") { onAbout() }
+            ActionLine(title = "Удалить все документы") { showWipe = true }
 
             Spacer(Modifier.height(32.dp))
         }
