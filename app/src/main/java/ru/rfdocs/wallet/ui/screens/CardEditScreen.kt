@@ -36,13 +36,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
@@ -60,7 +61,39 @@ import ru.rfdocs.wallet.ui.WalletViewModel
 import ru.rfdocs.wallet.ui.components.PhotoThumbStrip
 import ru.rfdocs.wallet.ui.components.PhotoViewerDialog
 import ru.rfdocs.wallet.ui.components.SectionTitle
+import ru.rfdocs.wallet.ui.theme.Palette
 import java.util.UUID
+
+private fun isNumericMask(mask: String?): Boolean {
+    if (mask.isNullOrBlank()) return false
+    return mask.all { it == '0' || !it.isLetter() }
+}
+
+private fun digitCountOf(mask: String): Int = mask.count { it == '0' }
+
+private fun applyMask(raw: String, mask: String?): String {
+    if (mask.isNullOrBlank()) return raw
+    val digits = raw.filter { it.isDigit() }
+    val builder = StringBuilder()
+    var index = 0
+    for (ch in mask) {
+        if (index >= digits.length) break
+        if (ch == '0') {
+            builder.append(digits[index])
+            index++
+        } else {
+            builder.append(ch)
+        }
+    }
+    return builder.toString()
+}
+
+private fun isRequiredLabel(label: String): Boolean {
+    val lower = label.lowercase()
+    return lower.contains("фам") || lower.contains("имя") ||
+        lower.contains("серия") || lower.contains("номер") ||
+        lower.contains("инн") || lower.contains("снилс")
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,6 +129,7 @@ fun CardEditScreen(
         mutableStateListOf<String>().apply { addAll(existing?.photoIds ?: emptyList()) }
     }
     var viewingPhoto by remember { mutableStateOf<String?>(null) }
+    val errorKeys = remember(template) { mutableStateMapOf<String, String>() }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -104,11 +138,7 @@ fun CardEditScreen(
                 val bytes = runCatching {
                     context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 }.getOrNull()
-                if (bytes == null || bytes.isEmpty()) {
-                    null
-                } else {
-                    PhotoStore.save(context, bytes)
-                }
+                if (bytes == null || bytes.isEmpty()) null else PhotoStore.save(context, bytes)
             }
             if (saved == null) {
                 snackbarHostState.showSnackbar("Не удалось прочитать фото")
@@ -118,7 +148,34 @@ fun CardEditScreen(
         }
     }
 
+    fun validate(): Boolean {
+        errorKeys.clear()
+        template?.fields?.forEach { spec ->
+            val value = values[spec.key].orEmpty().trim()
+            val mask = spec.mask
+            when {
+                value.isEmpty() && isRequiredLabel(spec.label) -> {
+                    errorKeys[spec.key] = "Обязательное поле"
+                }
+
+                !mask.isNullOrBlank() && value.isNotEmpty() &&
+                    digitCountOf(mask) > 0 &&
+                    value.filter { it.isDigit() }.length != digitCountOf(mask) -> {
+                    errorKeys[spec.key] = "Неполный формат: нужно ${digitCountOf(mask)} цифр"
+                }
+            }
+        }
+        return errorKeys.isEmpty()
+    }
+
     fun save() {
+        if (!validate()) {
+            scope.launch {
+                snackbarHostState.showSnackbar("Проверьте выделенные поля")
+            }
+            return
+        }
+
         val now = System.currentTimeMillis()
         val builtFields = buildList {
             template?.fields?.forEach { spec ->
@@ -222,7 +279,7 @@ fun CardEditScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentAlignment = androidx.compose.ui.Alignment.Center
+                contentAlignment = Alignment.Center
             ) {
                 Text("Шаблон документа не найден")
             }
@@ -238,13 +295,21 @@ fun CardEditScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             template?.fields?.forEach { spec ->
+                val error = errorKeys[spec.key]
                 OutlinedTextField(
                     value = values[spec.key].orEmpty(),
                     onValueChange = { raw ->
                         values[spec.key] = applyMask(raw, spec.mask)
+                        if (errorKeys.containsKey(spec.key)) errorKeys.remove(spec.key)
                     },
                     label = { Text(spec.label) },
                     singleLine = true,
+                    isError = error != null,
+                    supportingText = if (error != null) {
+                        { Text(text = error, color = Palette.Danger) }
+                    } else {
+                        null
+                    },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = if (isNumericMask(spec.mask)) KeyboardType.Number else KeyboardType.Text
                     ),
@@ -275,7 +340,7 @@ fun CardEditScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Button(
                     onClick = { picker.launch("image/*") },
@@ -317,26 +382,4 @@ fun CardEditScreen(
             }
         )
     }
-}
-
-private fun isNumericMask(mask: String?): Boolean {
-    if (mask.isNullOrBlank()) return false
-    return mask.all { it == '0' || !it.isLetter() }
-}
-
-private fun applyMask(raw: String, mask: String?): String {
-    if (mask.isNullOrBlank()) return raw
-    val digits = raw.filter { it.isDigit() }
-    val builder = StringBuilder()
-    var index = 0
-    for (ch in mask) {
-        if (index >= digits.length) break
-        if (ch == '0') {
-            builder.append(digits[index])
-            index++
-        } else {
-            builder.append(ch)
-        }
-    }
-    return builder.toString()
 }
