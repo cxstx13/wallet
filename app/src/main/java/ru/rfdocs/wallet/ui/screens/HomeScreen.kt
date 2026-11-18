@@ -1,5 +1,9 @@
 package ru.rfdocs.wallet.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,16 +21,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,8 +43,9 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import ru.rfdocs.wallet.ui.WalletViewModel
+import ru.rfdocs.wallet.data.model.DocCard
+import ru.rfdocs.wallet.data.model.DocCategory
+import ru.rfdocs.wallet.data.repo.DocRepository
 import ru.rfdocs.wallet.ui.components.CategoryChips
 import ru.rfdocs.wallet.ui.components.GlassPanel
 import ru.rfdocs.wallet.ui.components.PlasticCard
@@ -44,17 +53,45 @@ import ru.rfdocs.wallet.ui.components.WalletSearchField
 import ru.rfdocs.wallet.ui.theme.Palette
 import ru.rfdocs.wallet.ui.theme.WalletTheme
 
+private fun categoryOf(card: DocCard): DocCategory {
+    val key = card.typeKey.lowercase()
+    return when {
+        key.contains("osago") || key.contains("kasko") ||
+            key.contains("oms") || key.contains("dms") -> DocCategory.MEDICINE
+        key.contains("driver") || key.contains("vu") || key.contains("sts") ||
+            key.contains("pts") -> DocCategory.AUTO
+        key.contains("birth") || key.contains("family") -> DocCategory.FAMILY
+        key.contains("passport") || key.contains("zagran") ||
+            key.contains("snils") || key.contains("inn") -> DocCategory.IDENTITY
+        else -> DocCategory.OTHER
+    }
+}
+
+private fun matchesQuery(card: DocCard, query: String): Boolean {
+    val term = query.trim().lowercase()
+    if (term.isEmpty()) return true
+    if (card.title.lowercase().contains(term)) return true
+    return card.fields.any { field -> field.value.lowercase().contains(term) }
+}
+
 @Composable
 fun HomeScreen(
-    viewModel: WalletViewModel,
     onOpenCard: (String) -> Unit,
     onAddCard: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
-    val cards by viewModel.visibleCards.collectAsStateWithLifecycle()
-    val query by viewModel.query.collectAsStateWithLifecycle()
-    val filter by viewModel.filter.collectAsStateWithLifecycle()
-    val allCards by viewModel.cards.collectAsStateWithLifecycle()
+    val cards by DocRepository.cards.collectAsState()
+    var query by remember { mutableStateOf("") }
+    var filter by remember { mutableStateOf<DocCategory?>(null) }
+    var revealed by remember { mutableStateOf(false) }
+
+    val visible = remember(cards, query, filter) {
+        cards.filter { card ->
+            (filter == null || categoryOf(card) == filter) && matchesQuery(card, query)
+        }
+    }
+
+    LaunchedEffect(Unit) { revealed = true }
 
     Box(
         modifier = Modifier
@@ -68,7 +105,7 @@ fun HomeScreen(
                 .statusBarsPadding()
                 .padding(horizontal = 20.dp)
         ) {
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(Modifier.height(20.dp))
 
             Text(
                 text = "Мои документы",
@@ -76,42 +113,51 @@ fun HomeScreen(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(Modifier.height(2.dp))
             Text(
-                text = "Офлайн · ${allCards.size} карточек",
+                text = "Офлайн · ${cards.size} карточек",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
-            WalletSearchField(query = query, onQueryChange = viewModel::setQuery)
-            Spacer(modifier = Modifier.height(12.dp))
-            CategoryChips(selected = filter, onSelect = viewModel::setFilter)
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(Modifier.height(20.dp))
+            WalletSearchField(query = query, onQueryChange = { query = it })
+            Spacer(Modifier.height(12.dp))
+            CategoryChips(selected = filter, onSelect = { filter = it })
+            Spacer(Modifier.height(24.dp))
 
-            if (cards.isEmpty()) {
-                EmptyState(
-                    hasAnyCards = allCards.isNotEmpty(),
-                    onAddCard = onAddCard
-                )
-            } else {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(if (cards.size > 1) (-42).dp else 10.dp)
-                ) {
-                    cards.forEachIndexed { index, card ->
-                        PlasticCard(
-                            card = card,
-                            compact = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .zIndex(index.toFloat()),
-                            onClick = { onOpenCard(card.id) }
+            AnimatedVisibility(
+                visible = revealed,
+                enter = fadeIn(tween(260)) + slideInVertically(tween(260)) { height -> height / 10 }
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (visible.isEmpty()) {
+                        EmptyState(
+                            hasAnyCards = cards.isNotEmpty(),
+                            onAddCard = onAddCard
                         )
+                    } else {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(
+                                if (visible.size > 1) (-24).dp else 14.dp
+                            )
+                        ) {
+                            visible.forEachIndexed { index, card ->
+                                PlasticCard(
+                                    card = card,
+                                    compact = true,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .zIndex(index.toFloat()),
+                                    onClick = { onOpenCard(card.id) }
+                                )
+                            }
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(160.dp))
+            Spacer(Modifier.height(160.dp))
         }
 
         HomeBottomBar(
@@ -158,12 +204,12 @@ private fun HomeBottomBar(
             horizontalArrangement = Arrangement.Center
         ) {
             Icon(
-                imageVector = Icons.Rounded.Add,
+                imageVector = Icons.Filled.Add,
                 contentDescription = null,
                 tint = Palette.NightBase,
                 modifier = Modifier.size(20.dp)
             )
-            Spacer(modifier = Modifier.size(8.dp))
+            Spacer(Modifier.size(8.dp))
             Text(
                 text = "Добавить документ",
                 style = MaterialTheme.typography.labelLarge,
@@ -185,7 +231,7 @@ private fun HomeBottomBar(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Rounded.Settings,
+                imageVector = Icons.Filled.Settings,
                 contentDescription = "Настройки",
                 tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(21.dp)
@@ -209,7 +255,7 @@ private fun EmptyState(
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface
         )
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(Modifier.height(6.dp))
         Text(
             text = if (hasAnyCards) {
                 "Измените запрос или выберите другую категорию"
@@ -220,7 +266,7 @@ private fun EmptyState(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         if (!hasAnyCards) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
             Box(
                 modifier = Modifier
                     .clip(CircleShape)
