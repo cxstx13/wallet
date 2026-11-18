@@ -10,7 +10,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,8 +22,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -76,7 +75,7 @@ fun SettingsScreen(
     val activity = view.context as? Activity
 
     var biometricEnabled by remember { mutableStateOf(SecurePrefs.isBiometricEnabled(context)) }
-    var screenshotProtected by remember { mutableStateOf(true) }
+    var screenshotBlocked by remember { mutableStateOf(SecurePrefs.isScreenshotBlocked(context)) }
     var showPinChange by remember { mutableStateOf(false) }
     var showWipe by remember { mutableStateOf(false) }
     var showExportPassword by remember { mutableStateOf(false) }
@@ -86,12 +85,16 @@ fun SettingsScreen(
 
     val biometricAvailable = remember { BiometricHelper.isBiometricAvailable(context) }
 
-    fun applyScreenshotProtection(enabled: Boolean) {
-        screenshotProtected = enabled
+    fun applyScreenshotPolicy(enabled: Boolean) {
+        SecurePrefs.setScreenshotBlocked(context, enabled)
+        screenshotBlocked = enabled
         val window = activity?.window
         if (window != null) {
             if (enabled) {
-                window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                window.setFlags(
+                    WindowManager.LayoutParams.FLAG_SECURE,
+                    WindowManager.LayoutParams.FLAG_SECURE
+                )
             } else {
                 window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
             }
@@ -168,7 +171,7 @@ fun SettingsScreen(
             checked = biometricEnabled,
             enabled = biometricAvailable,
             onCheckedChange = { value ->
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 biometricEnabled = value
                 SecurePrefs.setBiometricEnabled(context, value)
             }
@@ -177,16 +180,16 @@ fun SettingsScreen(
         Spacer(Modifier.height(10.dp))
         SwitchRow(
             title = "Запрет скриншотов",
-            subtitle = if (screenshotProtected) {
+            subtitle = if (screenshotBlocked) {
                 "FLAG_SECURE включён: снимки экрана блокируются"
             } else {
                 "Снимки экрана разрешены — данные видны при захвате"
             },
-            checked = screenshotProtected,
+            checked = screenshotBlocked,
             enabled = true,
             onCheckedChange = { value ->
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                applyScreenshotProtection(value)
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                applyScreenshotPolicy(value)
             }
         )
 
@@ -194,7 +197,7 @@ fun SettingsScreen(
         NavRow(
             title = "Сменить PIN-код",
             onClick = {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 showPinChange = true
             }
         )
@@ -208,7 +211,7 @@ fun SettingsScreen(
             checked = darkTheme,
             enabled = true,
             onCheckedChange = { value ->
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onToggleDarkTheme(value)
             }
         )
@@ -220,7 +223,7 @@ fun SettingsScreen(
             title = "Экспорт зашифрованного бэкапа",
             subtitle = "Один файл, защищённый паролем",
             onClick = {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 if (DocRepository.cardCount() == 0) {
                     Toast.makeText(context, "Нет документов для экспорта", Toast.LENGTH_SHORT).show()
                 } else {
@@ -234,7 +237,7 @@ fun SettingsScreen(
             title = "Импорт из бэкапа",
             subtitle = "Заменит текущие документы",
             onClick = {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 importLauncher.launch(arrayOf("application/octet-stream", "*/*"))
             }
         )
@@ -245,7 +248,7 @@ fun SettingsScreen(
         NavRow(
             title = "О приложении и конфиденциальность",
             onClick = {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onAbout()
             }
         )
@@ -256,7 +259,7 @@ fun SettingsScreen(
             subtitle = "Безвозвратно, только на этом устройстве",
             danger = true,
             onClick = {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 showWipe = true
             }
         )
@@ -364,7 +367,7 @@ private fun SwitchRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Spacer(Modifier.size(8.dp))
+        Spacer(Modifier.width(8.dp))
         Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
 }
