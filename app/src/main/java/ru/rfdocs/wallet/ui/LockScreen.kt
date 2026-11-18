@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -28,6 +29,9 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import ru.rfdocs.wallet.data.repo.DocRepository
 import ru.rfdocs.wallet.security.BiometricHelper
@@ -61,17 +65,22 @@ fun LockScreen(
 ) {
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val activity = remember(context) { context.findFragmentActivity() }
 
     var pin by remember { mutableStateOf("") }
     var errorCount by remember { mutableIntStateOf(0) }
     var showReset by remember { mutableStateOf(false) }
+    var lastPromptAt by remember { mutableLongStateOf(0L) }
 
     val biometricEnabled = remember { SecurePrefs.isBiometricEnabled(context) }
     val biometricAvailable = remember { BiometricHelper.isBiometricAvailable(context) }
 
     fun tryBiometric() {
         if (!biometricEnabled || !biometricAvailable || activity == null) return
+        val now = System.currentTimeMillis()
+        if (now - lastPromptAt < 1500L) return
+        lastPromptAt = now
         BiometricHelper.prompt(
             activity = activity,
             title = "Вход в приложение",
@@ -82,16 +91,18 @@ fun LockScreen(
         )
     }
 
-    LaunchedEffect(Unit) {
-        delay(300)
-        tryBiometric()
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            delay(250)
+            tryBiometric()
+        }
     }
 
     LaunchedEffect(pin) {
         if (pin.length < PIN_LENGTH) return@LaunchedEffect
         if (PinVault.verify(context, pin)) {
             SecurePrefs.setFailedAttempts(context, 0)
-            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             onUnlocked()
         } else {
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -118,7 +129,7 @@ fun LockScreen(
 
             PinHeader(
                 title = "Введите PIN-код",
-                subtitle = "Локальное хранилище документов"
+                subtitle = "Данные хранятся только на этом устройстве"
             )
 
             Spacer(Modifier.height(30.dp))
