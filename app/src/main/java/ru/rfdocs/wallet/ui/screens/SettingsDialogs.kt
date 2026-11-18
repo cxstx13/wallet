@@ -40,13 +40,16 @@ fun ExportBackupDialog(uri: Uri?, onDismiss: () -> Unit) {
 
     PasswordDialog(
         title = "Пароль для бэкапа",
-        message = "Файл будет зашифрован паролем. Запомните его — без пароля данные не восстановить.",
+        message = "Файл будет зашифрован. Запомните пароль.",
         confirmText = "Экспортировать",
         onConfirm = { password ->
             scope.launch {
                 val message = withContext(Dispatchers.IO) {
                     BackupManager.exportTo(context, uri, password).fold(
-                        onSuccess = { count -> "Экспортировано документов: $count" },
+                        onSuccess = { result ->
+                            val kb = (result.bytes / 1024).coerceAtLeast(1)
+                            "Готово: ${result.cards} док., $kb КБ"
+                        },
                         onFailure = { error -> error.message ?: "Ошибка экспорта" }
                     )
                 }
@@ -65,7 +68,7 @@ fun ImportBackupDialog(uri: Uri?, onDismiss: () -> Unit) {
 
     PasswordDialog(
         title = "Пароль от бэкапа",
-        message = "Введите пароль, с которым создавался файл резервной копии.",
+        message = "Введите пароль, с которым создавался файл.",
         confirmText = "Импортировать",
         onConfirm = { password ->
             scope.launch {
@@ -75,7 +78,7 @@ fun ImportBackupDialog(uri: Uri?, onDismiss: () -> Unit) {
                             DocRepository.refresh()
                             "Восстановлено документов: $count"
                         },
-                        onFailure = { error -> error.message ?: "Не удалось восстановить бэкап" }
+                        onFailure = { error -> error.message ?: "Не удалось восстановить" }
                     )
                 }
                 Toast.makeText(context, message, Toast.LENGTH_LONG).show()
@@ -91,12 +94,12 @@ fun WipeVaultDialog(onDismiss: () -> Unit) {
 
     ConfirmDialog(
         title = "Удалить все документы?",
-        message = "Все карточки и фотографии будут удалены с устройства. Действие необратимо.",
+        message = "Данные будут удалены с устройства.",
         confirmText = "Удалить",
         onConfirm = {
             DocRepository.wipeAll()
             CryptoManager.wipeKey()
-            Toast.makeText(context, "Все документы удалены", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Удалено", Toast.LENGTH_SHORT).show()
         },
         onDismiss = onDismiss
     )
