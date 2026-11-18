@@ -4,7 +4,7 @@ import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -38,9 +38,9 @@ fun generateQrBitmap(content: String, sizePx: Int = 720): Bitmap? {
         )
         val pixels = IntArray(sizePx * sizePx)
         for (y in 0 until sizePx) {
-            val offset = y * sizePx
+            val rowOffset = y * sizePx
             for (x in 0 until sizePx) {
-                pixels[offset + x] = if (matrix.get(x, y)) {
+                pixels[rowOffset + x] = if (matrix.get(x, y)) {
                     android.graphics.Color.BLACK
                 } else {
                     android.graphics.Color.WHITE
@@ -63,9 +63,9 @@ fun QrCodeView(
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(Color.White)
-            .padding(12.dp),
+            .padding(10.dp),
         contentAlignment = Alignment.Center
     ) {
         if (bitmap != null) {
@@ -74,8 +74,8 @@ fun QrCodeView(
                 contentDescription = "QR-код документа",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(8.dp))
             )
         }
     }
