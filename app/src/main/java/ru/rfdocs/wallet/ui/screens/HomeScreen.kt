@@ -24,12 +24,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,12 +51,6 @@ import ru.rfdocs.wallet.ui.components.PlasticCard
 import ru.rfdocs.wallet.ui.components.WalletSearchField
 import ru.rfdocs.wallet.ui.theme.Palette
 import ru.rfdocs.wallet.ui.theme.WalletTheme
-
-private enum class SortMode(val label: String) {
-    DATE("По дате добавления"),
-    CATEGORY("По категории"),
-    TITLE("По названию")
-}
 
 private fun categoryOf(card: DocCard): DocCategory {
     val key = card.typeKey.lowercase()
@@ -92,21 +82,11 @@ fun HomeScreen(
     val cards by DocRepository.cards.collectAsState()
     var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf<DocCategory?>(null) }
-    var sortMode by remember { mutableStateOf(SortMode.DATE) }
-    var sortMenu by remember { mutableStateOf(false) }
 
-    val visible = remember(cards, query, filter, sortMode) {
-        val filtered = cards.filter { card ->
+    val visible = remember(cards, query, filter) {
+        cards.filter { card ->
             (filter == null || categoryOf(card) == filter) && matchesQuery(card, query)
-        }
-        when (sortMode) {
-            SortMode.DATE -> filtered.sortedByDescending { it.createdAt }
-            SortMode.CATEGORY -> filtered.sortedWith(
-                compareBy({ categoryOf(it).label }, { it.title })
-            )
-
-            SortMode.TITLE -> filtered.sortedBy { it.title }
-        }
+        }.sortedByDescending { it.createdAt }
     }
 
     Box(
@@ -121,59 +101,16 @@ fun HomeScreen(
                 .statusBarsPadding()
                 .padding(horizontal = 20.dp)
         ) {
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(24.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Мои документы",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = "Офлайн · ${cards.size} карточек · ${sortMode.label.lowercase()}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            Text(
+                text = "Документы",
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
 
-                Box {
-                    IconButton(onClick = { sortMenu = true }) {
-                        Icon(
-                            imageVector = Icons.Filled.List,
-                            contentDescription = "Сортировка",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = sortMenu,
-                        onDismissRequest = { sortMenu = false }
-                    ) {
-                        SortMode.entries.forEach { mode ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = mode.label,
-                                        color = if (mode == sortMode) {
-                                            WalletTheme.extra.monoAccent
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurface
-                                        }
-                                    )
-                                },
-                                onClick = {
-                                    sortMode = mode
-                                    sortMenu = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(18.dp))
             WalletSearchField(query = query, onQueryChange = { query = it })
             Spacer(Modifier.height(12.dp))
             CategoryChips(selected = filter, onSelect = { filter = it })
