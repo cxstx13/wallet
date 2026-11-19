@@ -6,6 +6,10 @@ object Palette {
     val Gold = Color(0xFFB9A6FF)
     val GoldSoft = Color(0xFFD9CCFF)
 
+    val Mint = Color(0xFF6FE3C0)
+    val CardOnDark = Color(0xFFF7F9FC)
+    val CardOnDarkMuted = Color(0xFFB6C0D0)
+
     val RubyDark = Color(0xFF4A0E1B)
     val Ruby = Color(0xFF8E1B2E)
 
@@ -53,5 +57,6 @@ object Palette {
     val TextSecondaryLight = Color(0xFF6A6379)
 
     val Danger = Color(0xFFE05252)
+    val Warning = Color(0xFFFFC46B)
     val Success = Color(0xFF3FBF7F)
 }
