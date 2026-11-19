@@ -26,7 +26,8 @@ sealed interface Screen {
 
 @Composable
 fun AppRoot() {
-    var darkTheme by remember { mutableStateOf(isSystemInDarkTheme()) }
+    val systemDark = isSystemInDarkTheme()
+    var darkTheme by remember { mutableStateOf(systemDark) }
     var unlocked by remember { mutableStateOf(false) }
     var screen by remember { mutableStateOf<Screen>(Screen.Home) }
 
