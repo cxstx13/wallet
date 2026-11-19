@@ -19,10 +19,10 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
 private val DarkColors = darkColorScheme(
-    primary = Palette.Gold,
+    primary = Palette.Lavender,
     onPrimary = Palette.NightBase,
     primaryContainer = Palette.Indigo,
-    onPrimaryContainer = Palette.CardOnDark,
+    onPrimaryContainer = Palette.TextPrimaryDark,
     secondary = Palette.SapphireLight,
     onSecondary = Color.White,
     tertiary = Palette.Azure,
@@ -42,7 +42,7 @@ private val DarkColors = darkColorScheme(
 private val LightColors = lightColorScheme(
     primary = Palette.Violet,
     onPrimary = Color.White,
-    primaryContainer = Palette.GoldSoft,
+    primaryContainer = Palette.LavenderSoft,
     onPrimaryContainer = Palette.TextPrimaryLight,
     secondary = Palette.Sapphire,
     onSecondary = Color.White,
@@ -92,23 +92,23 @@ data class WalletExtraColors(
 )
 
 private val DarkExtras = WalletExtraColors(
-    glassFill = Color(0xFF14121E).copy(alpha = 0.66f),
-    glassBorder = Color.White.copy(alpha = 0.12f),
-    glassHighlight = Color.White.copy(alpha = 0.07f),
-    shadow = Color.Black.copy(alpha = 0.55f),
+    glassFill = Color(0xFF13121D).copy(alpha = 0.75f),
+    glassBorder = Color.White.copy(alpha = 0.08f),
+    glassHighlight = Color.White.copy(alpha = 0.05f),
+    shadow = Color.Black.copy(alpha = 0.60f),
     onCardPrimary = Palette.CardOnDark,
     onCardSecondary = Palette.CardOnDarkMuted,
-    monoAccent = Palette.Gold,
-    chipFill = Color(0xFF1A1726),
-    chipSelectedFill = Palette.Gold,
-    chipSelectedText = Palette.NightBase,
-    fieldFill = Color(0xFF16131F),
-    fieldStroke = Color.White.copy(alpha = 0.09f),
+    monoAccent = Palette.Lavender,
+    chipFill = Color(0xFF191725),
+    chipSelectedFill = Palette.Lavender,
+    chipSelectedText = Color(0xFF0B0912),
+    fieldFill = Color(0xFF15131F).copy(alpha = 0.85f),
+    fieldStroke = Color.White.copy(alpha = 0.07f),
     fieldLabel = Palette.TextSecondaryDark,
-    pillFill = Color(0xFF1A1726),
-    pillStroke = Color.White.copy(alpha = 0.12f),
+    pillFill = Color(0xFF1A1726).copy(alpha = 0.85f),
+    pillStroke = Color.White.copy(alpha = 0.10f),
     pillText = Palette.TextPrimaryDark,
-    screenTop = Color(0xFF0B0912),
+    screenTop = Color(0xFF0B0813),
     screenBottom = Palette.NightBase,
     isDark = true
 )
