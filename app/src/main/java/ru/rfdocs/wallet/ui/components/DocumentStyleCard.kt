@@ -3,10 +3,8 @@ package ru.rfdocs.wallet.ui.components
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,8 +24,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -40,16 +40,22 @@ private fun coverTitles(typeKey: String): Pair<String, String> {
     return when {
         key.contains("foreign") || key.contains("zagran") ->
             "РОССИЙСКАЯ ФЕДЕРАЦИЯ" to "ЗАГРАНПАСПОРТ"
+
         key.contains("passport") || key.contains("pasport") ->
             "РОССИЙСКАЯ ФЕДЕРАЦИЯ" to "ПАСПОРТ"
+
         key.contains("driver") || key.contains("vu") ->
             "РОССИЙСКАЯ ФЕДЕРАЦИЯ" to "ВОДИТЕЛЬСКОЕ УДОСТОВЕРЕНИЕ"
+
         key.contains("sts") ->
             "РОССИЙСКАЯ ФЕДЕРАЦИЯ" to "СВИДЕТЕЛЬСТВО О РЕГИСТРАЦИИ"
+
         key.contains("pts") ->
             "РОССИЙСКАЯ ФЕДЕРАЦИЯ" to "ПАСПОРТ ТРАНСПОРТНОГО СРЕДСТВА"
+
         key.contains("osago") || key.contains("kasko") ->
             "СТРАХОВОЙ ПОЛИС" to "ОСАГО"
+
         key.contains("oms") -> "ПОЛИС" to "ОМС"
         key.contains("dms") -> "ПОЛИС" to "ДМС"
         key.contains("snils") -> "ПЕНСИОННЫЙ ФОНД" to "СНИЛС"
@@ -104,11 +110,11 @@ fun DocumentStyleCard(
                         )
                     ),
                     topLeft = Offset(inset, inset),
-                    size = androidx.compose.ui.geometry.Size(
+                    size = Size(
                         size.width - inset * 2f,
                         size.height - inset * 2f
                     ),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
+                    style = Stroke(width = 2f)
                 )
             }
         }
@@ -141,28 +147,22 @@ fun DocumentStyleCard(
             )
         }
 
-        Row(
+        Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalArrangement = Arrangement.Center
+                .padding(16.dp)
+                .size(30.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.14f))
+                .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(30.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.14f))
-                    .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Check,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }
