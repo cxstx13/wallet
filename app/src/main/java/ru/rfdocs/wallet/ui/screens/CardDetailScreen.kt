@@ -12,12 +12,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.QrCode2
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
@@ -33,6 +29,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
@@ -41,16 +38,14 @@ import kotlinx.coroutines.withContext
 import ru.rfdocs.wallet.data.repo.DocRepository
 import ru.rfdocs.wallet.data.repo.PhotoStore
 import ru.rfdocs.wallet.ui.WalletViewModel
+import ru.rfdocs.wallet.ui.components.DocumentStyleCard
 import ru.rfdocs.wallet.ui.components.FieldRow
 import ru.rfdocs.wallet.ui.components.GlassPanel
-import ru.rfdocs.wallet.ui.components.PillButton
-import ru.rfdocs.wallet.ui.components.PhotoThumbStrip
 import ru.rfdocs.wallet.ui.components.PhotoViewerDialog
 import ru.rfdocs.wallet.ui.components.SectionTitle
 import ru.rfdocs.wallet.ui.components.WalletBackground
-import ru.rfdocs.wallet.ui.components.expiryDateOf
 import ru.rfdocs.wallet.ui.components.expiryCaption
-import ru.rfdocs.wallet.ui.components.DocumentStyleCard
+import ru.rfdocs.wallet.ui.components.expiryDateOf
 import ru.rfdocs.wallet.ui.input.PhoneMask
 import ru.rfdocs.wallet.ui.theme.Palette
 
@@ -61,7 +56,7 @@ fun CardDetailScreen(
     onBack: () -> Unit,
     onEdit: (String) -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val cards by DocRepository.cards.collectAsState()
     val card = cards.firstOrNull { it.id == cardId }
@@ -101,8 +96,12 @@ fun CardDetailScreen(
         return
     }
 
-    if (showQr) CardQrDialog(card = card, onDismiss = { showQr = false })
-    if (showShare) CardShareDialog(card = card, onDismiss = { showShare = false })
+    if (showQr) {
+        CardQrDialog(card = card, onDismiss = { showQr = false })
+    }
+    if (showShare) {
+        CardShareDialog(card = card, onDismiss = { showShare = false })
+    }
     if (showDelete) {
         CardDeleteDialog(
             card = card,
@@ -127,7 +126,8 @@ fun CardDetailScreen(
         )
     }
 
-    val phoneField = card.fields.firstOrNull { it.phone && it.value.isNotBlank() }
+    val phone = card.fields.firstOrNull { it.phone && it.value.isNotBlank() }
+    val hasPhone = phone != null
 
     WalletBackground {
         Column(
@@ -216,64 +216,25 @@ fun CardDetailScreen(
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionTitle(text = "Фото документа")
-            Spacer(Modifier.height(10.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                PillButton(
-                    text = "Добавить фото",
-                    icon = Icons.Filled.Add,
-                    onClick = { picker.launch("image/*") },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(Modifier.height(10.dp))
-            PhotoThumbStrip(
+            DetailFooter(
                 photoIds = card.photoIds,
-                onOpen = { viewingPhoto = it },
-                onRemove = { photoId ->
+                hasPhone = hasPhone,
+                onAddPhoto = { picker.launch("image/*") },
+                onOpenPhoto = { photoId -> viewingPhoto = photoId },
+                onRemovePhoto = { photoId ->
                     DocRepository.get(card.id)?.let { current ->
                         DocRepository.upsert(current.copy(photoIds = current.photoIds - photoId))
                     }
+                },
+                onQr = { showQr = true },
+                onShare = { showShare = true },
+                onCall = {
+                    if (phone != null) {
+                        dialNumber(context, PhoneMask.toDialable(phone.value))
+                    }
                 }
             )
-
-            Spacer(Modifier.height(18.dp))
-
-            PillButton(
-                text = "Показать QR-код",
-                icon = Icons.Filled.QrCode2,
-                onClick = { showQr = true }
-            )
-
-            Spacer(Modifier.height(10.dp))
-
-            PillButton(
-                text = "Поделиться",
-                icon = Icons.Filled.Share,
-                onClick = { showShare = true }
-            )
-
-            if (phoneField != null) {
-                Spacer(Modifier.height(10.dp))
-                PillButton(
-                    text = "Позвонить",
-                    icon = Icons.Filled.Call,
-                    onClick = {
-                        val dial = PhoneMask.toDialable(phoneField.value)
-                        if (dial.isNotBlank()) {
-                            val intent = android.content.Intent(
-                                android.content.Intent.ACTION_DIAL,
-                                android.net.Uri.parse("tel:$dial")
-                            )
-                            runCatching { context.startActivity(intent) }
-                        }
-                    }
-                )
-            }
-
-            Spacer(Modifier.height(40.dp))
         }
     }
 }
