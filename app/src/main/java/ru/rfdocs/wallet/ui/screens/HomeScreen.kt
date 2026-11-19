@@ -3,6 +3,7 @@ package ru.rfdocs.wallet.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,6 +31,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import ru.rfdocs.wallet.data.model.DocCard
 import ru.rfdocs.wallet.data.model.DocCategory
@@ -40,6 +43,7 @@ import ru.rfdocs.wallet.ui.components.WalletBackground
 import ru.rfdocs.wallet.ui.components.WalletSearchField
 import ru.rfdocs.wallet.ui.components.documentIconOf
 import ru.rfdocs.wallet.ui.components.expiryDateOf
+import ru.rfdocs.wallet.ui.theme.DocumentGradients
 import ru.rfdocs.wallet.ui.theme.WalletTheme
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -55,7 +59,8 @@ private fun expiryText(card: DocCard): String {
 }
 
 @Composable
-private fun RowItem(card: DocCard, onClick: () -> Unit) {
+private fun DocRow(card: DocCard, onClick: () -> Unit) {
+    val g = DocumentGradients.forType(card.typeKey)
     val t = MaterialTheme.typography
     val c = MaterialTheme.colorScheme
 
@@ -65,24 +70,35 @@ private fun RowItem(card: DocCard, onClick: () -> Unit) {
             .clip(RoundedCornerShape(20.dp))
             .background(WalletTheme.extra.glassFill)
             .clickable { onClick() }
-            .padding(14.dp),
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = documentIconOf(card.typeKey),
-            contentDescription = null,
-            tint = c.primary,
-            modifier = Modifier.size(26.dp)
-        )
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Brush.linearGradient(g.colors)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = documentIconOf(card.typeKey),
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
         Spacer(Modifier.width(14.dp))
+
         Column(modifier = Modifier.weight(1f)) {
             Text(text = card.title, style = t.titleMedium, color = c.onSurface)
-            Text(text = expiryText(card), style = t.bodySmall, color = c.onSurface)
+            Text(text = expiryText(card), style = t.bodySmall, color = c.onSurfaceVariant)
         }
+
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = c.onSurface
+            tint = c.onSurfaceVariant
         )
     }
 }
@@ -141,12 +157,12 @@ fun HomeScreen(
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     visible.forEach { card ->
-                        RowItem(card = card, onClick = { onOpenCard(card.id) })
+                        DocRow(card = card, onClick = { onOpenCard(card.id) })
                     }
                 }
             }
 
-            Spacer(Modifier.height(160.dp))
+            Spacer(Modifier.height(140.dp))
         }
 
         HomeBottomBar(
@@ -155,7 +171,7 @@ fun HomeScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .padding(horizontal = 28.dp, vertical = 16.dp)
         )
     }
 }
