@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import ru.rfdocs.wallet.ui.screens.AboutScreen
 import ru.rfdocs.wallet.ui.screens.CardDetailScreen
 import ru.rfdocs.wallet.ui.screens.CardEditScreen
@@ -26,14 +27,46 @@ sealed interface Screen {
 
 @Composable
 fun AppRoot() {
+    val context = LocalContext.current
     val systemDark = isSystemInDarkTheme()
+
     var darkTheme by remember { mutableStateOf(systemDark) }
+    var pinSet by remember { mutableStateOf(PinGate.isPinSet(context)) }
     var unlocked by remember { mutableStateOf(false) }
+    var resetOpen by remember { mutableStateOf(false) }
     var screen by remember { mutableStateOf<Screen>(Screen.Home) }
 
     WalletTheme(darkTheme = darkTheme) {
+        if (!pinSet) {
+            PinSetupScreen(
+                title = "Придумайте PIN-код",
+                subtitle = "Он нужен для входа в приложение",
+                onComplete = { pin ->
+                    PinGate.setPin(context, pin)
+                    pinSet = true
+                    unlocked = true
+                },
+                onCancel = { }
+            )
+            return@WalletTheme
+        }
+
         if (!unlocked) {
-            LockScreen(onUnlocked = { unlocked = true })
+            LockScreen(
+                onUnlocked = { unlocked = true },
+                onForgotPin = { resetOpen = true }
+            )
+            if (resetOpen) {
+                LockResetDialog(
+                    onDismiss = { resetOpen = false },
+                    onReset = {
+                        resetOpen = false
+                        PinGate.clear(context)
+                        pinSet = false
+                        unlocked = false
+                    }
+                )
+            }
             return@WalletTheme
         }
 
