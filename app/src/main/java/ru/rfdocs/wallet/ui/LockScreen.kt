@@ -1,75 +1,71 @@
 package ru.rfdocs.wallet.ui
 
-import android.content.Context
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
-import ru.rfdocs.wallet.data.repo.DocRepository
 import ru.rfdocs.wallet.security.BiometricHelper
-import ru.rfdocs.wallet.security.CryptoManager
-import ru.rfdocs.wallet.security.LockManager
 import ru.rfdocs.wallet.security.PinVault
 import ru.rfdocs.wallet.security.SecurePrefs
+import ru.rfdocs.wallet.ui.components.PinDots
+import ru.rfdocs.wallet.ui.components.PinPad
 import ru.rfdocs.wallet.ui.components.WalletBackground
 import ru.rfdocs.wallet.ui.theme.Palette
+import ru.rfdocs.wallet.ui.theme.WalletTheme
 
-fun Context.findFragmentActivity(): FragmentActivity? {
-    var ctx: Context? = this
-    while (ctx is android.content.ContextWrapper) {
-        if (ctx is FragmentActivity) return ctx
-        ctx = ctx.baseContext
-    }
-    return null
-}
-
-fun wipeVault(context: Context) {
-    runCatching { DocRepository.wipeAll() }
-    CryptoManager.wipeKey()
-    PinVault.clear(context)
-    SecurePrefs.clearAll(context)
-    LockManager.lock()
-}
+private const val PIN_LENGTH = 4
 
 @Composable
 fun LockScreen(
     onUnlocked: () -> Unit,
-    onVaultReset: () -> Unit
+    onForgotPin: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
-    val haptics = LocalHapticFeedback.current
+    val activity = context as? FragmentActivity
     val lifecycleOwner = LocalLifecycleOwner.current
-    val activity = remember(context) { context.findFragmentActivity() }
+    val haptics = LocalHapticFeedback.current
+    val extras = WalletTheme.extra
 
     var pin by remember { mutableStateOf("") }
-    var errorCount by remember { mutableIntStateOf(0) }
-    var showReset by remember { mutableStateOf(false) }
-    var lastPromptAt by remember { mutableLongStateOf(0L) }
+    var errorCount by remember { mutableStateOf(0) }
+    var lastPromptAt by remember { mutableStateOf(0L) }
 
     val biometricEnabled = remember { SecurePrefs.isBiometricEnabled(context) }
     val biometricAvailable = remember { BiometricHelper.isBiometricAvailable(context) }
@@ -111,59 +107,83 @@ fun LockScreen(
         }
     }
 
-    if (showReset) {
-        LockResetDialog(
-            onDismiss = { showReset = false },
-            onConfirm = { wipeVault(context); onVaultReset() }
-        )
-    }
-
     WalletBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
                 .navigationBarsPadding()
                 .padding(horizontal = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Spacer(Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .size(74.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Palette.LavenderSoft, Palette.LavenderDeep)
+                        )
+                    )
+                    .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Lock,
+                    contentDescription = null,
+                    tint = Color(0xFF14101F),
+                    modifier = Modifier.size(30.dp)
+                )
+            }
 
-            PinHeader(
-                title = "Введите PIN-код",
-                subtitle = "Данные хранятся только на этом устройстве"
+            Spacer(Modifier.height(22.dp))
+            Text(
+                text = "Введите PIN-код",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "Доступ к вашим документам",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(Modifier.height(30.dp))
-            PinDots(length = PIN_LENGTH, filled = pin.length, errorCount = errorCount)
+            Spacer(Modifier.height(28.dp))
+            PinDots(
+                count = pin.length,
+                length = PIN_LENGTH,
+                error = errorCount > 0
+            )
             Spacer(Modifier.height(12.dp))
             Text(
                 text = if (errorCount > 0) "Неверный PIN-код" else " ",
-                style = MaterialTheme.typography.labelLarge,
-                color = if (errorCount > 0) Palette.Danger else Palette.Success,
-                textAlign = TextAlign.Center
+                style = MaterialTheme.typography.labelMedium,
+                color = Palette.Danger
             )
 
-            Spacer(Modifier.weight(1f))
-
-            PinKeypad(
-                onDigit = { digit -> if (pin.length < PIN_LENGTH) pin += digit },
+            Spacer(Modifier.height(18.dp))
+            PinPad(
+                onDigit = { digit -> if (pin.length < PIN_LENGTH) pin = pin + digit },
                 onBackspace = { pin = pin.dropLast(1) },
-                onBiometric = if (biometricEnabled && biometricAvailable) {
-                    { tryBiometric() }
-                } else {
-                    null
-                }
+                biometric = biometricAvailable && biometricEnabled,
+                onBiometric = { tryBiometric() }
             )
 
-            Spacer(Modifier.height(16.dp))
-            TextButton(onClick = { showReset = true }) {
+            if (onForgotPin != null) {
+                Spacer(Modifier.height(18.dp))
                 Text(
-                    text = "Забыли код доступа?",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Забыли PIN-код?",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = extras.monoAccent,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onForgotPin() }
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                 )
             }
-            Spacer(Modifier.height(8.dp))
         }
     }
 }
