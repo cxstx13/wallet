@@ -44,10 +44,10 @@ import ru.rfdocs.wallet.ui.components.GlassPanel
 import ru.rfdocs.wallet.ui.components.PhotoViewerDialog
 import ru.rfdocs.wallet.ui.components.SectionTitle
 import ru.rfdocs.wallet.ui.components.WalletBackground
-import ru.rfdocs.wallet.ui.components.expiryCaption
 import ru.rfdocs.wallet.ui.components.expiryDateOf
 import ru.rfdocs.wallet.ui.input.PhoneMask
 import ru.rfdocs.wallet.ui.theme.Palette
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun CardDetailScreen(
@@ -127,7 +127,7 @@ fun CardDetailScreen(
     }
 
     val phone = card.fields.firstOrNull { it.phone && it.value.isNotBlank() }
-    val hasPhone = phone != null
+    val expiry = expiryDateOf(card)
 
     WalletBackground {
         Column(
@@ -186,10 +186,10 @@ fun CardDetailScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            if (expiryDateOf(card) != null) {
+            if (expiry != null) {
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = expiryCaption(card),
+                    text = "Действителен до " + DateTimeFormatter.ofPattern("dd.MM.yyyy").format(expiry),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Palette.Success
                 )
@@ -219,7 +219,7 @@ fun CardDetailScreen(
 
             DetailFooter(
                 photoIds = card.photoIds,
-                hasPhone = hasPhone,
+                hasPhone = phone != null,
                 onAddPhoto = { picker.launch("image/*") },
                 onOpenPhoto = { photoId -> viewingPhoto = photoId },
                 onRemovePhoto = { photoId ->
