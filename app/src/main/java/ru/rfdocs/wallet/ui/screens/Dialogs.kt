@@ -1,8 +1,12 @@
 package ru.rfdocs.wallet.ui.screens
 
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,18 +39,74 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.MultiFormatWriter
 import ru.rfdocs.wallet.data.model.DocCard
-import ru.rfdocs.wallet.ui.components.QrCodeView
-import ru.rfdocs.wallet.ui.input.FieldMasks
+import ru.rfdocs.wallet.ui.components.fieldDisplayValue
 import ru.rfdocs.wallet.ui.theme.Palette
 import ru.rfdocs.wallet.ui.theme.WalletTheme
+
+fun sharePlainText(context: Context, text: String) {
+    if (text.isBlank()) return
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, text)
+    }
+    runCatching { context.startActivity(Intent.createChooser(intent, "Поделиться")) }
+}
+
+fun buildShareText(card: DocCard, selectedKeys: Set<String>): String {
+    val builder = StringBuilder(card.title).append('\n')
+    card.fields.forEach { field ->
+        if (field.value.isNotBlank() && selectedKeys.contains(field.key)) {
+            builder.append(field.label).append(": ")
+                .append(fieldDisplayValue(field)).append('\n')
+        }
+    }
+    return builder.toString().trim()
+}
+
+private fun buildQr(content: String, sizePx: Int = 640): Bitmap? {
+    if (content.isBlank()) return null
+    return runCatching {
+        val hints = mapOf(
+            EncodeHintType.MARGIN to 1,
+            EncodeHintType.CHARACTER_SET to "UTF-8"
+        )
+        val matrix = MultiFormatWriter().encode(
+            content,
+            BarcodeFormat.QR_CODE,
+            sizePx,
+            sizePx,
+            hints
+        )
+        val pixels = IntArray(sizePx * sizePx)
+        for (y in 0 until sizePx) {
+            for (x in 0 until sizePx) {
+                pixels[y * sizePx + x] = if (matrix.get(x, y)) {
+                    android.graphics.Color.BLACK
+                } else {
+                    android.graphics.Color.WHITE
+                }
+            }
+        }
+        Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888).apply {
+            setPixels(pixels, 0, sizePx, 0, 0, sizePx, sizePx)
+        }
+    }.getOrNull()
+}
 
 @Composable
 private fun AnimatedDialog(
@@ -136,12 +197,33 @@ fun QrDialog(
     AnimatedDialog(onDismissRequest = onDismiss) {
         DialogTitle(text = title)
         Spacer(Modifier.height(16.dp))
-        QrCodeView(
-            content = content,
+
+        val bitmap = remember(content) { buildQr(content) }
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(250.dp)
-        )
+                .clip(RoundedCornerShape(18.dp))
+                .background(androidx.compose.ui.graphics.Color.White)
+                .padding(12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = "QR-код",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxWidth().height(226.dp)
+                )
+            } else {
+                Text(
+                    text = "Нет данных для QR-кода",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = androidx.compose.ui.graphics.Color.Black
+                )
+            }
+        }
+
         Spacer(Modifier.height(16.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -150,22 +232,6 @@ fun QrDialog(
             DialogButton(text = "Закрыть", onClick = onDismiss, accent = true)
         }
     }
-}
-
-fun buildShareText(card: DocCard, selectedKeys: Set<String>): String {
-    val builder = StringBuilder()
-    builder.append(card.title).append('\n')
-    card.fields.forEach { field ->
-        if (field.value.isNotBlank() && selectedKeys.contains(field.key)) {
-            val value = if (field.mask.isNullOrBlank()) {
-                field.value
-            } else {
-                FieldMasks.display(field.value, field.mask)
-            }
-            builder.append(field.label).append(": ").append(value).append('\n')
-        }
-    }
-    return builder.toString().trim()
 }
 
 @Composable
@@ -223,16 +289,16 @@ fun ShareFieldsDialog(
                         Text(
                             text = field.label,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = if (field.mask.isNullOrBlank()) {
-                                field.value
-                            } else {
-                                FieldMasks.display(field.value, field.mask)
-                            },
+                            text = fieldDisplayValue(field),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -258,8 +324,9 @@ fun ShareFieldsDialog(
                 enabled = selected.isNotEmpty(),
                 accent = true,
                 onClick = {
-                    onShare(buildShareText(card, selected))
+                    val text = buildShareText(card, selected)
                     onDismiss()
+                    onShare(text)
                 }
             )
         }
@@ -335,17 +402,20 @@ fun PasswordDialog(
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = MaterialTheme.colorScheme.onSurface
                 ),
-                cursorBrush = SolidColor(Palette.Gold),
+                cursorBrush = SolidColor(Palette.Lavender),
+                visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
                 decorationBox = { innerTextField ->
-                    if (password.isEmpty()) {
-                        Text(
-                            text = "Пароль",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        )
+                    Box {
+                        if (password.isEmpty()) {
+                            Text(
+                                text = "Пароль",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                        }
+                        innerTextField()
                     }
-                    innerTextField()
                 }
             )
         }
