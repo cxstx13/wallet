@@ -1,180 +1,305 @@
-package ru.rfdocs.wallet.security
+package ru.rfdocs.wallet.ui.components
 
-import android.content.Context
-import android.net.Uri
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.json.Json
-import ru.rfdocs.wallet.data.model.DocCard
-import ru.rfdocs.wallet.data.repo.DocRepository
-import ru.rfdocs.wallet.data.repo.PhotoStore
-import java.io.ByteArrayOutputStream
-import java.io.FileOutputStream
-import java.io.IOException
-import javax.crypto.AEADBadTagException
-import javax.crypto.Cipher
-import javax.crypto.spec.GCMParameterSpec
-import javax.crypto.spec.SecretKeySpec
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
+import ru.rfdocs.wallet.data.model.DocField
+import ru.rfdocs.wallet.ui.input.DateMask
+import ru.rfdocs.wallet.ui.input.FieldMasks
+import ru.rfdocs.wallet.ui.input.MaskedVisualTransformation
+import ru.rfdocs.wallet.ui.input.Masks
+import ru.rfdocs.wallet.ui.input.PhoneMask
+import ru.rfdocs.wallet.ui.input.digitCount
+import ru.rfdocs.wallet.ui.input.digitsOnly
+import ru.rfdocs.wallet.ui.input.formatWithMask
+import ru.rfdocs.wallet.ui.theme.MonoStyle
+import ru.rfdocs.wallet.ui.theme.Palette
+import ru.rfdocs.wallet.ui.theme.WalletTheme
+import java.time.LocalDate
+import java.util.Locale
 
-data class BackupResult(val cards: Int, val bytes: Int)
+private fun isLongText(label: String): Boolean {
+    val lower = label.lowercase()
+    return lower.contains("адрес") || lower.contains("прописка") ||
+        lower.contains("родител") || lower.contains("место рождения") ||
+        lower.contains("кем выдан")
+}
 
-@Serializable
-data class BackupPayload(
-    val cardsJson: String,
-    val photos: Map<String, String>
-)
+private fun isNameField(label: String): Boolean {
+    val lower = label.lowercase()
+    return lower.contains("фамилия") || lower.contains("имя") ||
+        lower.contains("отчество") || lower.contains("фио") ||
+        lower.contains("собственник") || lower.contains("получатель") ||
+        lower.contains("загс") || lower.contains("страховая")
+}
 
-object BackupManager {
+fun fieldDisplayValue(field: DocField): String {
+    val mask = field.mask
+    return if (mask.isNullOrBlank()) field.value else FieldMasks.display(field.value, mask)
+}
 
-    private const val HEADER = "RFWALLET2"
-    private const val SALT_SIZE = 16
-    private const val MIN_IV_SIZE = 12
-    private const val MAX_IV_SIZE = 16
-    private const val TAG_BITS = 128
-    private const val TRANSFORMATION = "AES/GCM/NoPadding"
-
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-        isLenient = true
+fun fieldValidationError(field: DocField): String? {
+    val mask = field.mask
+    if (mask.isNullOrBlank()) return null
+    if (mask == Masks.DATE) {
+        val error = DateMask.error(field.value)
+        if (error != null) return error
+        if (field.value.isNotBlank() && digitsOnly(field.value).length < DateMask.DIGITS) {
+            return "Введите дату полностью: дд.мм.гггг"
+        }
+        return null
     }
-
-    private val cardsSerializer = ListSerializer(DocCard.serializer())
-
-    fun exportTo(context: Context, uri: Uri, password: String): Result<BackupResult> {
-        return try {
-            require(password.length >= 6) { "Пароль короче 6 символов" }
-
-            val cardsJson = String(DocRepository.exportCardsJson(), Charsets.UTF_8).trim()
-            require(cardsJson.length > 2) { "Нет документов для экспорта" }
-
-            val cardCount = runCatching {
-                json.decodeFromString(cardsSerializer, cardsJson).size
-            }.getOrDefault(0)
-            require(cardCount > 0) { "Нет документов для экспорта" }
-
-            val photos = PhotoStore.exportAll(context).mapValues { entry ->
-                PinVault.base64Encode(entry.value)
-            }
-            val payload = BackupPayload(cardsJson = cardsJson, photos = photos)
-            val plain = json.encodeToString(BackupPayload.serializer(), payload)
-                .toByteArray(Charsets.UTF_8)
-
-            val salt = PinVault.randomBytes(SALT_SIZE)
-            val keyBytes = PinVault.deriveKey(password, salt)
-            val cipher = Cipher.getInstance(TRANSFORMATION)
-            cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(keyBytes, "AES"))
-            val iv = cipher.iv
-            val encrypted = cipher.doFinal(plain)
-
-            val buffer = ByteArrayOutputStream()
-            buffer.write(HEADER.toByteArray(Charsets.US_ASCII))
-            buffer.write(salt)
-            buffer.write(iv.size)
-            buffer.write(iv)
-            buffer.write(encrypted)
-            buffer.flush()
-
-            val bytes = buffer.toByteArray()
-            buffer.close()
-
-            require(bytes.isNotEmpty()) { "Пустой файл" }
-
-            writeAll(context, uri, bytes)
-
-            Result.success(BackupResult(cards = cardCount, bytes = bytes.size))
-        } catch (error: Throwable) {
-            Result.failure(IllegalStateException(error.message ?: "Ошибка экспорта", error))
+    if (field.value.isNotBlank()) {
+        val required = digitCount(mask)
+        val actual = digitsOnly(field.value).length
+        if (actual > 0 && actual < required) {
+            return "Нужно цифр: $required"
         }
     }
+    return null
+}
 
-    fun importFrom(context: Context, uri: Uri, password: String): Result<Int> {
-        return try {
-            val bytes = context.contentResolver.openInputStream(uri)?.use { input ->
-                input.readBytes()
-            } ?: return Result.failure(IllegalStateException("Не удалось прочитать файл"))
+@Composable
+fun FieldLabel(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = WalletTheme.extra.fieldLabel,
+        modifier = modifier
+    )
+}
 
-            require(bytes.isNotEmpty()) { "Файл пустой — создайте бэкап заново" }
+@Composable
+fun WalletField(
+    label: String,
+    modifier: Modifier = Modifier,
+    errorText: String? = null,
+    trailing: (@Composable () -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
+    val extras = WalletTheme.extra
+    val borderColor = if (errorText != null) Palette.Danger else extras.fieldStroke
 
-            val header = HEADER.toByteArray(Charsets.US_ASCII)
-            require(bytes.size > header.size + SALT_SIZE + 1 + MIN_IV_SIZE) {
-                "Файл повреждён"
+    Column(modifier = modifier.fillMaxWidth()) {
+        FieldLabel(text = label)
+        Spacer(Modifier.height(6.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(extras.fieldFill)
+                .border(1.dp, borderColor, RoundedCornerShape(14.dp))
+                .padding(
+                    start = 14.dp,
+                    end = if (trailing != null) 4.dp else 14.dp,
+                    top = 12.dp,
+                    bottom = 12.dp
+                ),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                content()
             }
-            require(bytes.copyOfRange(0, header.size).contentEquals(header)) {
-                "Это не файл резервной копии"
+            if (trailing != null) {
+                trailing()
             }
-
-            var offset = header.size
-            val salt = bytes.copyOfRange(offset, offset + SALT_SIZE)
-            offset += SALT_SIZE
-            val ivSize = bytes[offset].toInt() and 0xFF
-            offset += 1
-            require(ivSize in MIN_IV_SIZE..MAX_IV_SIZE) { "Файл повреждён" }
-            val iv = bytes.copyOfRange(offset, offset + ivSize)
-            offset += ivSize
-            val encrypted = bytes.copyOfRange(offset, bytes.size)
-
-            val keyBytes = PinVault.deriveKey(password, salt)
-            val cipher = Cipher.getInstance(TRANSFORMATION)
-            cipher.init(
-                Cipher.DECRYPT_MODE,
-                SecretKeySpec(keyBytes, "AES"),
-                GCMParameterSpec(TAG_BITS, iv)
+        }
+        if (errorText != null) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = errorText,
+                style = MaterialTheme.typography.labelSmall,
+                color = Palette.Danger
             )
+        }
+    }
+}
 
-            val plain = try {
-                cipher.doFinal(encrypted)
-            } catch (tagError: AEADBadTagException) {
-                return Result.failure(
-                    IllegalStateException("Неверный пароль или файл повреждён", tagError)
-                )
+@Composable
+private fun SoftTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    mono: Boolean,
+    multiline: Boolean,
+    keyboardOptions: KeyboardOptions,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    modifier: Modifier = Modifier
+) {
+    val baseStyle = if (mono) MonoStyle else MaterialTheme.typography.bodyLarge
+    val textStyle = baseStyle.copy(color = MaterialTheme.colorScheme.onSurface)
+
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = if (multiline) 72.dp else 24.dp),
+        textStyle = textStyle,
+        singleLine = !multiline,
+        minLines = if (multiline) 3 else 1,
+        keyboardOptions = keyboardOptions,
+        cursorBrush = SolidColor(Palette.Gold),
+        visualTransformation = visualTransformation,
+        decorationBox = { innerTextField ->
+            Box {
+                if (value.isEmpty() && placeholder.isNotEmpty()) {
+                    Text(
+                        text = placeholder,
+                        style = textStyle,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                    )
+                }
+                innerTextField()
             }
+        }
+    )
+}
 
-            val payload = json.decodeFromString(
-                BackupPayload.serializer(),
-                String(plain, Charsets.UTF_8)
-            )
+@Composable
+private fun DatePickerButton(
+    currentDigits: String,
+    onPick: (String) -> Unit
+) {
+    val context = LocalContext.current
 
-            val restored = DocRepository.importCardsJson(
-                payload.cardsJson.toByteArray(Charsets.UTF_8)
-            )
-            if (restored <= 0) {
-                return Result.failure(IllegalStateException("В бэкапе нет документов"))
+    IconButton(
+        onClick = {
+            val iso = DateMask.toIso(currentDigits)
+            val base = if (iso.isNotBlank()) {
+                runCatching { LocalDate.parse(iso) }.getOrNull() ?: LocalDate.now()
+            } else {
+                LocalDate.now()
             }
-
-            PhotoStore.importAll(
+            android.app.DatePickerDialog(
                 context,
-                payload.photos.mapValues { entry -> PinVault.base64Decode(entry.value) }
-            )
-            DocRepository.refresh()
+                { _, year, month, dayOfMonth ->
+                    onPick(String.format(Locale.US, "%02d%02d%04d", dayOfMonth, month + 1, year))
+                },
+                base.year,
+                base.monthValue - 1,
+                base.dayOfMonth
+            ).show()
+        },
+        modifier = Modifier.size(36.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.DateRange,
+            contentDescription = "Выбрать дату",
+            tint = Palette.Gold
+        )
+    }
+}
 
-            Result.success(restored)
-        } catch (error: Throwable) {
-            Result.failure(IllegalStateException(error.message ?: "Ошибка импорта", error))
+@Composable
+fun DocFieldEditor(
+    field: DocField,
+    onFieldChange: (DocField) -> Unit,
+    modifier: Modifier = Modifier,
+    externalError: String? = null
+) {
+    val mask = field.mask
+    val hasMask = !mask.isNullOrBlank() && digitCount(mask) > 0
+    val isDate = mask == Masks.DATE
+    val isPhone = field.phone || mask == Masks.PHONE
+    val isMaskedNumber = hasMask && !isDate && !isPhone
+    val maxDigits = remember(mask) {
+        if (mask.isNullOrBlank()) Int.MAX_VALUE else digitCount(mask)
+    }
+
+    val transformation: VisualTransformation = remember(mask) {
+        when {
+            isDate -> DateMask.transformation()
+            isPhone -> PhoneMask.transformation()
+            hasMask -> MaskedVisualTransformation(mask, digitCount(mask))
+            else -> VisualTransformation.None
         }
     }
 
-    private fun writeAll(context: Context, uri: Uri, bytes: ByteArray) {
-        context.contentResolver.openFileDescriptor(uri, "wt")?.use { descriptor ->
-            FileOutputStream(descriptor.fileDescriptor).use { output ->
-                output.write(bytes)
-                output.flush()
-                runCatching { output.fd.sync() }
+    val internalError = remember(field.value, mask) { fieldValidationError(field) }
+    val shownError = externalError ?: internalError
+
+    WalletField(
+        label = field.label,
+        modifier = modifier,
+        errorText = shownError,
+        trailing = if (isDate) {
+            {
+                DatePickerButton(currentDigits = field.value) { digits ->
+                    onFieldChange(field.copy(value = digits))
+                }
             }
+        } else {
+            null
         }
-
-        val written = context.contentResolver.openInputStream(uri)?.use { input ->
-            input.readBytes().size
-        } ?: -1
-
-        if (written != bytes.size) {
-            throw IOException("Записано $written из ${bytes.size} байт")
+    ) {
+        if (hasMask) {
+            SoftTextField(
+                value = digitsOnly(field.value).take(maxDigits),
+                onValueChange = { raw ->
+                    onFieldChange(field.copy(value = digitsOnly(raw).take(maxDigits)))
+                },
+                placeholder = when {
+                    isDate -> "дд.мм.гггг"
+                    isPhone -> "+7 (___) ___-__-__"
+                    else -> formatWithMask("", mask.orEmpty())
+                },
+                mono = true,
+                multiline = false,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (isDate || isPhone || isMaskedNumber) {
+                        KeyboardType.Number
+                    } else {
+                        KeyboardType.Text
+                    },
+                    capitalization = KeyboardCapitalization.None
+                ),
+                visualTransformation = transformation
+            )
+        } else {
+            SoftTextField(
+                value = field.value,
+                onValueChange = { raw -> onFieldChange(field.copy(value = raw)) },
+                placeholder = field.label,
+                mono = false,
+                multiline = isLongText(field.label),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    capitalization = if (isNameField(field.label)) {
+                        KeyboardCapitalization.Words
+                    } else {
+                        KeyboardCapitalization.Sentences
+                    }
+                )
+            )
         }
-    }
-
-    fun suggestedFileName(): String {
-        val stamp = java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US)
-            .format(java.util.Date())
-        return "wallet-backup-$stamp.rfwallet"
     }
 }
