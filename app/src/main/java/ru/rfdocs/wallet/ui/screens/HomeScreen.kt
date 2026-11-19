@@ -1,15 +1,24 @@
 package ru.rfdocs.wallet.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,15 +29,63 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import ru.rfdocs.wallet.data.model.DocCard
 import ru.rfdocs.wallet.data.model.DocCategory
 import ru.rfdocs.wallet.data.repo.DocRepository
 import ru.rfdocs.wallet.ui.components.CategoryChips
-import ru.rfdocs.wallet.ui.components.DocumentRow
 import ru.rfdocs.wallet.ui.components.GlassPanel
 import ru.rfdocs.wallet.ui.components.WalletBackground
 import ru.rfdocs.wallet.ui.components.WalletSearchField
+import ru.rfdocs.wallet.ui.components.documentIconOf
+import ru.rfdocs.wallet.ui.components.expiryDateOf
+import ru.rfdocs.wallet.ui.theme.WalletTheme
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+
+private fun expiryText(card: DocCard): String {
+    val date = expiryDateOf(card) ?: return "Без срока"
+    val text = DateTimeFormatter.ofPattern("dd.MM.yyyy").format(date)
+    val days = ChronoUnit.DAYS.between(LocalDate.now(), date)
+    if (days < 0L) return "Истёк $text"
+    if (days <= 30L) return "Истекает $text"
+    return "Действителен до $text"
+}
+
+@Composable
+private fun RowItem(card: DocCard, onClick: () -> Unit) {
+    val t = MaterialTheme.typography
+    val c = MaterialTheme.colorScheme
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(WalletTheme.extra.glassFill)
+            .clickable { onClick() }
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = documentIconOf(card.typeKey),
+            contentDescription = null,
+            tint = c.primary,
+            modifier = Modifier.size(26.dp)
+        )
+        Spacer(Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = card.title, style = t.titleMedium, color = c.onSurface)
+            Text(text = expiryText(card), style = t.bodySmall, color = c.onSurface)
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = c.onSurface
+        )
+    }
+}
 
 @Composable
 fun HomeScreen(
@@ -80,21 +137,11 @@ fun HomeScreen(
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onBackground
                     )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = if (cards.isEmpty()) {
-                            "Добавьте первый документ"
-                        } else {
-                            "Измените запрос или категорию"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     visible.forEach { card ->
-                        DocumentRow(card = card, onClick = { onOpenCard(card.id) })
+                        RowItem(card = card, onClick = { onOpenCard(card.id) })
                     }
                 }
             }
