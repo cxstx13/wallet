@@ -130,10 +130,11 @@ fun CardDetailScreen(
     val expiry = expiryDateOf(card)
 
     WalletBackground {
-        Column(
+                Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
+                .statusBarsPadding()
                 .padding(horizontal = 16.dp)
         ) {
             Row(
