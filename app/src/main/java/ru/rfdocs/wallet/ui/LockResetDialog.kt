@@ -6,13 +6,13 @@ import ru.rfdocs.wallet.ui.screens.ConfirmDialog
 @Composable
 fun LockResetDialog(
     onDismiss: () -> Unit,
-    onConfirm: () -> Unit
+    onReset: () -> Unit
 ) {
     ConfirmDialog(
-        title = "Сбросить всё?",
-        message = "Данные будут удалены безвозвратно.",
-        confirmText = "Удалить",
-        onConfirm = onConfirm,
+        title = "Сбросить PIN-код?",
+        message = "Старый код будет удалён. Новый код задаётся при следующем запуске.",
+        confirmText = "Сбросить",
+        onConfirm = onReset,
         onDismiss = onDismiss
     )
 }
