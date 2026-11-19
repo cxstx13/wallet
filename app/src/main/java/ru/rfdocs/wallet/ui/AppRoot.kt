@@ -1,69 +1,38 @@
 package ru.rfdocs.wallet.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel
-import ru.rfdocs.wallet.security.LockManager
-import ru.rfdocs.wallet.security.PinVault
-import ru.rfdocs.wallet.security.SecurePrefs
 import ru.rfdocs.wallet.ui.screens.AboutScreen
 import ru.rfdocs.wallet.ui.screens.CardDetailScreen
 import ru.rfdocs.wallet.ui.screens.CardEditScreen
 import ru.rfdocs.wallet.ui.screens.HomeScreen
-import ru.rfdocs.wallet.ui.screens.SettingsScreen
+import ru.rfdocs.wallet.ui.screens.SettingsBody
 import ru.rfdocs.wallet.ui.screens.TemplatePickerScreen
 import ru.rfdocs.wallet.ui.theme.WalletTheme
 
+sealed interface Screen {
+    data object Home : Screen
+    data object Picker : Screen
+    data class Detail(val cardId: String) : Screen
+    data class Edit(val cardId: String?, val typeKey: String?) : Screen
+    data object Settings : Screen
+    data object About : Screen
+}
+
 @Composable
-fun AppRoot(viewModel: WalletViewModel = viewModel()) {
-    val context = LocalContext.current
-    var darkOverride by remember { mutableStateOf(SecurePrefs.darkTheme(context)) }
-    val isDark = darkOverride ?: isSystemInDarkTheme()
-    val locked by LockManager.locked.collectAsState()
+fun AppRoot() {
+    var darkTheme by remember { mutableStateOf(isSystemInDarkTheme()) }
+    var unlocked by remember { mutableStateOf(false) }
+    var screen by remember { mutableStateOf<Screen>(Screen.Home) }
 
-    WalletTheme(darkTheme = isDark) {
-        var pinConfigured by remember { mutableStateOf(PinVault.isPinSet(context)) }
-        var screen by remember { mutableStateOf<Screen>(Screen.Home) }
-
-        if (!pinConfigured) {
-            PinSetupScreen(
-                title = "Придумайте PIN-код",
-                subtitle = "Код нужен для входа в приложение и хранится только на устройстве",
-                onComplete = { pin ->
-                    PinVault.setPin(context, pin)
-                    SecurePrefs.setOnboarded(context, true)
-                    pinConfigured = true
-                    screen = Screen.Home
-                    LockManager.unlock()
-                }
-            )
-            return@WalletTheme
-        }
-
-        if (locked) {
-            LockScreen(
-                onUnlocked = { LockManager.unlock() },
-                onVaultReset = {
-                    screen = Screen.Home
-                    pinConfigured = false
-                }
-            )
+    WalletTheme(darkTheme = darkTheme) {
+        if (!unlocked) {
+            LockScreen(onUnlocked = { unlocked = true })
             return@WalletTheme
         }
 
@@ -73,83 +42,56 @@ fun AppRoot(viewModel: WalletViewModel = viewModel()) {
                 is Screen.Edit -> if (current.cardId != null) {
                     Screen.Detail(current.cardId)
                 } else {
-                    Screen.TemplatePicker
+                    Screen.Picker
                 }
 
-                is Screen.TemplatePicker -> Screen.Home
+                is Screen.Picker -> Screen.Home
                 is Screen.Settings -> Screen.Home
                 is Screen.About -> Screen.Settings
                 else -> Screen.Home
             }
         }
 
-        AnimatedContent(
-            targetState = screen,
-            transitionSpec = {
-                (
-                    fadeIn(animationSpec = tween(220)) +
-                        scaleIn(
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioNoBouncy,
-                                stiffness = Spring.StiffnessMediumLow
-                            ),
-                            initialScale = 0.94f
-                        )
-                    ) togetherWith (
-                    fadeOut(animationSpec = tween(140)) +
-                        scaleOut(animationSpec = tween(180), targetScale = 0.98f)
-                    )
-            },
-            label = "wallet_screen"
-        ) { current ->
-            when (current) {
-                is Screen.Home -> HomeScreen(
-                    onOpenCard = { cardId -> screen = Screen.Detail(cardId) },
-                    onAddCard = { screen = Screen.TemplatePicker },
-                    onOpenSettings = { screen = Screen.Settings }
-                )
+        when (val current = screen) {
+            is Screen.Home -> HomeScreen(
+                onOpenCard = { cardId -> screen = Screen.Detail(cardId) },
+                onAddCard = { screen = Screen.Picker },
+                onOpenSettings = { screen = Screen.Settings }
+            )
 
-                is Screen.TemplatePicker -> TemplatePickerScreen(
-                    onPick = { typeKey -> screen = Screen.Edit(null, typeKey) },
-                    onBack = { screen = Screen.Home }
-                )
+            is Screen.Picker -> TemplatePickerScreen(
+                onPick = { typeKey -> screen = Screen.Edit(null, typeKey) },
+                onBack = { screen = Screen.Home }
+            )
 
-                is Screen.Detail -> CardDetailScreen(
-                    viewModel = viewModel,
-                    cardId = current.cardId,
-                    onBack = { screen = Screen.Home },
-                    onEdit = { cardId -> screen = Screen.Edit(cardId, null) }
-                )
+            is Screen.Detail -> CardDetailScreen(
+                cardId = current.cardId,
+                onBack = { screen = Screen.Home },
+                onEdit = { cardId -> screen = Screen.Edit(cardId, null) },
+                onDelete = { card ->
+                    deleteCard(card.id)
+                    screen = Screen.Home
+                }
+            )
 
-                is Screen.Edit -> CardEditScreen(
-                    viewModel = viewModel,
-                    cardId = current.cardId,
-                    typeKey = current.typeKey,
-                    onBack = {
-                        screen = if (current.cardId != null) {
-                            Screen.Detail(current.cardId)
-                        } else {
-                            Screen.TemplatePicker
-                        }
-                    },
-                    onDone = { savedId -> screen = Screen.Detail(savedId) }
-                )
+            is Screen.Edit -> CardEditScreen(
+                cardId = current.cardId,
+                typeKey = current.typeKey,
+                onBack = {
+                    val id = current.cardId
+                    screen = if (id != null) Screen.Detail(id) else Screen.Picker
+                },
+                onDone = { cardId -> screen = Screen.Detail(cardId) }
+            )
 
-                is Screen.Settings -> SettingsScreen(
-                    viewModel = viewModel,
-                    darkTheme = isDark,
-                    onToggleDarkTheme = { value ->
-                        darkOverride = value
-                        SecurePrefs.setDarkTheme(context, value)
-                    },
-                    onBack = { screen = Screen.Home },
-                    onAbout = { screen = Screen.About }
-                )
+            is Screen.Settings -> SettingsBody(
+                darkTheme = darkTheme,
+                onToggleDarkTheme = { value -> darkTheme = value },
+                onBack = { screen = Screen.Home },
+                onAbout = { screen = Screen.About }
+            )
 
-                is Screen.About -> AboutScreen(
-                    onBack = { screen = Screen.Settings }
-                )
-            }
+            is Screen.About -> AboutScreen(onBack = { screen = Screen.Settings })
         }
     }
 }
