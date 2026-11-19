@@ -27,20 +27,46 @@ fun WalletBackground(
             .background(DocumentGradients.screenBrush(isDark))
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            drawCircle(
-                brush = DocumentGradients.glowBrush(isDark),
-                radius = size.minDimension * 0.85f,
-                center = Offset(size.width * 0.85f, size.height * 0.04f)
-            )
+            val topRight = Offset(size.width * 0.88f, size.height * 0.02f)
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Palette.Mint.copy(alpha = if (isDark) 0.10f else 0.14f),
+                        Palette.Lavender.copy(alpha = if (isDark) 0.26f else 0.20f),
                         Color.Transparent
-                    )
+                    ),
+                    center = topRight,
+                    radius = size.minDimension * 0.90f
                 ),
-                radius = size.minDimension * 0.7f,
-                center = Offset(size.width * 0.05f, size.height * 0.45f)
+                radius = size.minDimension * 0.90f,
+                center = topRight
+            )
+
+            val leftMiddle = Offset(size.width * 0.02f, size.height * 0.34f)
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Palette.Indigo.copy(alpha = if (isDark) 0.34f else 0.16f),
+                        Color.Transparent
+                    ),
+                    center = leftMiddle,
+                    radius = size.minDimension * 0.95f
+                ),
+                radius = size.minDimension * 0.95f,
+                center = leftMiddle
+            )
+
+            val bottomRight = Offset(size.width * 0.92f, size.height * 0.92f)
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Palette.Mint.copy(alpha = if (isDark) 0.08f else 0.12f),
+                        Color.Transparent
+                    ),
+                    center = bottomRight,
+                    radius = size.minDimension * 0.70f
+                ),
+                radius = size.minDimension * 0.70f,
+                center = bottomRight
             )
         }
         content()
