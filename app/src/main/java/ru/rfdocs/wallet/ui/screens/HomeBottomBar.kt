@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -29,13 +30,14 @@ fun HomeBottomBar(
     onSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(CircleShape)
             .background(WalletTheme.extra.glassFill)
             .border(1.dp, WalletTheme.extra.glassBorder, CircleShape)
-            .padding(8.dp)
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = "+  Добавить",
@@ -43,15 +45,25 @@ fun HomeBottomBar(
             color = Palette.NightBase,
             textAlign = TextAlign.Center,
             modifier = Modifier
-                .fillMaxWidth()
+                .weight(1f)
                 .clip(CircleShape)
                 .background(Palette.Gold)
                 .clickable { onAdd() }
                 .padding(vertical = 14.dp)
         )
-        Spacer(Modifier.size(1.dp))
+        Spacer(Modifier.size(8.dp))
         Box(
-            modifier = Modifier.size(1.dp)
-        )
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .clickable { onSettings() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Settings,
+                contentDescription = "Настройки",
+                tint = MaterialTheme.colorScheme.onBackground
+            )
+        }
     }
 }
