@@ -20,7 +20,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -355,50 +354,5 @@ fun CardEditScreen(
                 viewingPhoto = null
             }
         )
-    }
-}
-
-@Composable
-private fun CustomFieldRow(
-    field: DocField,
-    onLabelChange: (String) -> Unit,
-    onValueChange: (String) -> Unit,
-    onRemove: () -> Unit
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            WalletField(label = "Название поля", modifier = Modifier.weight(1f)) {
-                androidx.compose.foundation.text.BasicTextField(
-                    value = field.label,
-                    onValueChange = onLabelChange,
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(
-                        color = MaterialTheme.colorScheme.onSurface
-                    ),
-                    cursorBrush = androidx.compose.ui.graphics.SolidColor(Palette.Gold),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            IconButton(onClick = onRemove) {
-                Icon(
-                    imageVector = Icons.Filled.Delete,
-                    contentDescription = "Удалить поле",
-                    tint = Palette.Danger
-                )
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        WalletField(label = "Значение") {
-            androidx.compose.foundation.text.BasicTextField(
-                value = field.value,
-                onValueChange = onValueChange,
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodyLarge.copy(
-                    color = MaterialTheme.colorScheme.onSurface
-                ),
-                cursorBrush = androidx.compose.ui.graphics.SolidColor(Palette.Gold),
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
     }
 }
