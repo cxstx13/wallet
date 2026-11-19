@@ -35,11 +35,9 @@ fun expiryCaption(card: DocCard): String {
     val date: LocalDate = expiryDateOf(card) ?: return "Без срока действия"
     val formatted = DatePattern.format(date)
     val days = ChronoUnit.DAYS.between(LocalDate.now(), date)
-    return when {
-        days < 0L -> "Истёк $formatted"
-        days <= 30L -> "Истекает $formatted"
-        else -> "Действителен до $formatted"
-    }
+    if (days < 0L) return "Истёк $formatted"
+    if (days <= 30L) return "Истекает $formatted"
+    return "Действителен до $formatted"
 }
 
 @Composable
