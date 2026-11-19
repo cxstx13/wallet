@@ -137,6 +137,17 @@ fun CardEditScreen(
         }
     }
 
+    viewingPhoto?.let { photoId ->
+        PhotoViewerDialog(
+            photoId = photoId,
+            onDismiss = { viewingPhoto = null },
+            onDelete = { removed ->
+                photoIds.remove(removed)
+                viewingPhoto = null
+            }
+        )
+    }
+
     val previewCard = DocCard(
         id = existing?.id ?: "preview",
         typeKey = resolvedTypeKey,
@@ -343,16 +354,5 @@ fun CardEditScreen(
                 Spacer(Modifier.height(24.dp))
             }
         }
-    }
-
-    viewingPhoto?.let { photoId ->
-        PhotoViewerDialog(
-            photoId = photoId,
-            onDismiss = { viewingPhoto = null },
-            onDelete = { removed ->
-                photoIds.remove(removed)
-                viewingPhoto = null
-            }
-        )
     }
 }
