@@ -1,5 +1,6 @@
 package ru.rfdocs.wallet.ui.screens
 
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
