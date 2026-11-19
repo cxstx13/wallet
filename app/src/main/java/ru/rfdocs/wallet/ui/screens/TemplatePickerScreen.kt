@@ -58,8 +58,9 @@ fun TemplatePickerScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .statusBarsPadding()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 20.dp)
         ) {
+            Spacer(Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -67,15 +68,23 @@ fun TemplatePickerScreen(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад"
+                        contentDescription = "Назад",
+                        tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
-                Text(
-                    text = "Новый документ",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
+                Column {
+                    Text(
+                        text = "Новый документ",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = "Выберите тип карточки",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Spacer(Modifier.height(8.dp))
@@ -104,13 +113,14 @@ private fun TemplateRow(
     val gradient = DocumentGradients.forType(template.key)
     val extras = WalletTheme.extra
     val haptics = LocalHapticFeedback.current
+    val shape = RoundedCornerShape(20.dp)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(shape)
             .background(extras.glassFill)
-            .border(1.dp, extras.glassBorder, RoundedCornerShape(18.dp))
+            .border(1.dp, extras.glassBorder, shape)
             .clickable {
                 haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onClick()
@@ -121,16 +131,16 @@ private fun TemplateRow(
     ) {
         Box(
             modifier = Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(15.dp))
+                .size(48.dp)
+                .clip(RoundedCornerShape(14.dp))
                 .background(Brush.linearGradient(gradient.colors))
-                .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(15.dp)),
+                .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(14.dp)),
             contentAlignment = Alignment.Center
         ) {
             TypeBadge(
                 icon = documentIcon(template.key),
                 accent = gradient.accent,
-                size = 28.dp
+                size = 26.dp
             )
         }
 
@@ -138,6 +148,7 @@ private fun TemplateRow(
             Text(
                 text = template.title,
                 style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -149,7 +160,7 @@ private fun TemplateRow(
                 } else {
                     "Полей: ${template.fields.size}"
                 },
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
