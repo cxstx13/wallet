@@ -1,7 +1,5 @@
 package ru.rfdocs.wallet.ui.screens
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,14 +32,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import ru.rfdocs.wallet.data.model.DocCard
 import ru.rfdocs.wallet.data.model.DocCategory
 import ru.rfdocs.wallet.data.repo.DocRepository
 import ru.rfdocs.wallet.ui.components.CategoryChips
-import ru.rfdocs.wallet.ui.components.DocumentStyleCard
+import ru.rfdocs.wallet.ui.components.DocumentRow
 import ru.rfdocs.wallet.ui.components.GlassPanel
 import ru.rfdocs.wallet.ui.components.WalletBackground
 import ru.rfdocs.wallet.ui.components.WalletSearchField
@@ -100,12 +96,17 @@ fun HomeScreen(
                 style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.onBackground
             )
+            Text(
+                text = "Всегда под рукой",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             Spacer(Modifier.height(18.dp))
             WalletSearchField(query = query, onQueryChange = { query = it })
             Spacer(Modifier.height(12.dp))
             CategoryChips(selected = filter, onSelect = { filter = it })
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
 
             if (visible.isEmpty()) {
                 GlassPanel(modifier = Modifier.fillMaxWidth()) {
@@ -126,15 +127,10 @@ fun HomeScreen(
                     )
                 }
             } else {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(
-                        if (visible.size > 1) (-24).dp else 14.dp
-                    )
-                ) {
-                    visible.forEachIndexed { index, card ->
-                        CardInStack(
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    visible.forEach { card ->
+                        DocumentRow(
                             card = card,
-                            index = index,
                             onClick = { onOpenCard(card.id) }
                         )
                     }
@@ -144,95 +140,55 @@ fun HomeScreen(
             Spacer(Modifier.height(160.dp))
         }
 
-        BottomBar(
-            onAddCard = onAddCard,
-            onOpenSettings = onOpenSettings,
+        Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
+                .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 16.dp)
-        )
-    }
-}
-
-@Composable
-private fun CardInStack(
-    card: DocCard,
-    index: Int,
-    onClick: () -> Unit
-) {
-    val appear by animateFloatAsState(
-        targetValue = 1f,
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
-        label = "cardAppear"
-    )
-    DocumentStyleCard(
-        card = card,
-        compact = true,
-        modifier = Modifier
-            .fillMaxWidth()
-            .zIndex(index.toFloat())
-            .graphicsLayer {
-                alpha = appear
-                translationY = (1f - appear) * 40f
-            },
-        onClick = onClick
-    )
-}
-
-@Composable
-private fun BottomBar(
-    onAddCard: () -> Unit,
-    onOpenSettings: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val extras = WalletTheme.extra
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(CircleShape)
-            .background(extras.glassFill)
-            .border(1.dp, extras.glassBorder, CircleShape)
-            .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            modifier = Modifier
-                .weight(1f)
                 .clip(CircleShape)
-                .background(Palette.Gold)
-                .clickable { onAddCard() }
-                .padding(vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+                .background(WalletTheme.extra.glassFill)
+                .border(1.dp, WalletTheme.extra.glassBorder, CircleShape)
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Filled.Add,
-                contentDescription = null,
-                tint = Palette.NightBase,
-                modifier = Modifier.size(20.dp)
-            )
-            Text(
-                text = "  Добавить",
-                style = MaterialTheme.typography.labelLarge,
-                color = Palette.NightBase
-            )
-        }
-        Spacer(Modifier.size(8.dp))
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .clickable { onOpenSettings() },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Settings,
-                contentDescription = "Настройки",
-                tint = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.size(21.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(CircleShape)
+                    .background(Palette.Gold)
+                    .clickable { onAddCard() }
+                    .padding(vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = null,
+                    tint = Palette.NightBase,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = "  Добавить",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Palette.NightBase
+                )
+            }
+            Spacer(Modifier.size(8.dp))
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .clickable { onOpenSettings() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Settings,
+                    contentDescription = "Настройки",
+                    tint = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.size(21.dp)
+                )
+            }
         }
     }
 }
