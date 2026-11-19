@@ -42,7 +42,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import ru.rfdocs.wallet.security.BiometricHelper
-import ru.rfdocs.wallet.security.PinVault
 import ru.rfdocs.wallet.security.SecurePrefs
 import ru.rfdocs.wallet.ui.components.PinDots
 import ru.rfdocs.wallet.ui.components.PinPad
@@ -94,7 +93,7 @@ fun LockScreen(
 
     LaunchedEffect(pin) {
         if (pin.length < PIN_LENGTH) return@LaunchedEffect
-        if (PinVault.verify(context, pin)) {
+        if (PinGate.verify(context, pin)) {
             SecurePrefs.setFailedAttempts(context, 0)
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             onUnlocked()
