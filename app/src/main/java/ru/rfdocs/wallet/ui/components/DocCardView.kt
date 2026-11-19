@@ -35,13 +35,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ru.rfdocs.wallet.data.model.DocCard
+import ru.rfdocs.wallet.ui.input.digitsOnly
 import ru.rfdocs.wallet.ui.theme.DocumentGradients
 import ru.rfdocs.wallet.ui.theme.Palette
 import ru.rfdocs.wallet.ui.theme.WalletTheme
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.concurrent.TimeUnit
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 enum class DocStatus(val label: String) {
     VALID("Действителен"),
@@ -50,26 +50,14 @@ enum class DocStatus(val label: String) {
     NONE("")
 }
 
-fun docExpiryMillis(card: DocCard): Long? {
-    val keys = listOf("valid_until", "valid_to", "expiry", "validUntil")
-    val raw = card.fields
-        .firstOrNull { field -> keys.any { it.equals(field.key, ignoreCase = true) } }
-        ?.value
-        ?.trim()
-        .orEmpty()
-    if (raw.isEmpty()) return null
-    return runCatching {
-        SimpleDateFormat("dd.MM.yyyy", Locale.US).apply { isLenient = false }.parse(raw)?.time
-    }.getOrNull()
-}
+private val rowDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
 
 fun docStatusOf(card: DocCard): DocStatus {
-    val expiry = docExpiryMillis(card) ?: return DocStatus.NONE
-    val now = System.currentTimeMillis()
-    val soon = now + TimeUnit.DAYS.toMillis(30)
+    val date = expiryDateOf(card) ?: return DocStatus.NONE
+    val days = ChronoUnit.DAYS.between(LocalDate.now(), date)
     return when {
-        expiry < now -> DocStatus.EXPIRED
-        expiry <= soon -> DocStatus.SOON
+        days < 0L -> DocStatus.EXPIRED
+        days <= 30L -> DocStatus.SOON
         else -> DocStatus.VALID
     }
 }
@@ -82,21 +70,21 @@ fun docStatusColor(status: DocStatus): Color = when (status) {
 }
 
 fun docSubtitle(card: DocCard): String {
-    val expiry = docExpiryMillis(card)
-    if (expiry != null) {
-        val formatted = SimpleDateFormat("dd.MM.yyyy", Locale.US).format(Date(expiry))
+    val date = expiryDateOf(card)
+    if (date != null) {
+        val formatted = rowDateFormatter.format(date)
         return when (docStatusOf(card)) {
             DocStatus.EXPIRED -> "Истёк $formatted"
             DocStatus.SOON -> "Истекает $formatted"
             else -> "Действителен до $formatted"
         }
     }
-
-    val secret = card.fields.firstOrNull { it.secret && it.isFilled }
-        ?: card.fields.firstOrNull { it.key.equals("number", true) && it.isFilled }
-    if (secret != null) return secret.maskedPreview(4)
-
-    return card.filledFields.firstOrNull()?.value.orEmpty()
+    val masked = card.fields.firstOrNull { !it.mask.isNullOrBlank() && it.value.isNotBlank() }
+    if (masked != null) {
+        val tail = digitsOnly(masked.value).takeLast(4)
+        if (tail.isNotEmpty()) return "•••• $tail"
+    }
+    return "Без срока действия"
 }
 
 @Composable
@@ -109,14 +97,14 @@ fun DocCardView(
     val gradient = DocumentGradients.forType(card.typeKey)
     val haptics = LocalHapticFeedback.current
     val status = docStatusOf(card)
-    val subtitle = docSubtitle(card)
+    val shape = RoundedCornerShape(20.dp)
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(shape)
             .background(extras.glassFill)
-            .border(1.dp, extras.glassBorder, RoundedCornerShape(20.dp))
+            .border(1.dp, extras.glassBorder, shape)
             .clickable {
                 haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onClick()
@@ -134,7 +122,7 @@ fun DocCardView(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = documentIcon(card.typeKey),
+                imageVector = documentIconOf(card.typeKey),
                 contentDescription = null,
                 tint = Color.White,
                 modifier = Modifier.size(22.dp)
@@ -162,7 +150,7 @@ fun DocCardView(
                     Spacer(Modifier.width(6.dp))
                 }
                 Text(
-                    text = subtitle,
+                    text = docSubtitle(card),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
