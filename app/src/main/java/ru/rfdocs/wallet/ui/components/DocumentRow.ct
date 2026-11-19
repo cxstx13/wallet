@@ -1,0 +1,128 @@
+package ru.rfdocs.wallet.ui.components
+
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.dp
+import ru.rfdocs.wallet.data.model.DocCard
+import ru.rfdocs.wallet.ui.theme.DocumentGradients
+import ru.rfdocs.wallet.ui.theme.WalletTheme
+
+private val RowShape = RoundedCornerShape(20.dp)
+private val IconShape = RoundedCornerShape(16.dp)
+
+fun expiryCaption(card: DocCard): String {
+    val date = expiryDateOf(card) ?: return "Без срока действия"
+    val formatted = java.time.format.DateTimeFormatter
+        .ofPattern("dd.MM.yyyy")
+        .format(date)
+    val days = java.time.temporal.ChronoUnit.DAYS
+        .between(java.time.LocalDate.now(), date)
+    return when {
+        days < 0 -> "Истёк $formatted"
+        days <= 30 -> "Истекает $formatted"
+        else -> "Действителен до $formatted"
+    }
+}
+
+@Composable
+fun DocumentRow(
+    card: DocCard,
+    onClick: () -> Unit
+) {
+    val gradient = DocumentGradients.forType(card.typeKey)
+    val extras = WalletTheme.extra
+    val haptics = LocalHapticFeedback.current
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.977f else 1f,
+        animationSpec = spring(dampingRatio = 0.75f, stiffness = 400f),
+        label = "rowScale"
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RowShape)
+            .background(extras.glassFill)
+            .clickable(
+                interactionSource = interaction,
+                indication = null
+            ) {
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(IconShape)
+                .background(Brush.linearGradient(gradient.colors)),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = documentIconOf(card.typeKey),
+                contentDescription = null,
+                tint = gradient.accent,
+                modifier = Modifier
+                    .padding(start = 12.dp)
+                    .size(24.dp)
+            )
+        }
+
+        Spacer(Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = card.title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(Modifier.width(2.dp))
+            Text(
+                text = expiryCaption(card),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
