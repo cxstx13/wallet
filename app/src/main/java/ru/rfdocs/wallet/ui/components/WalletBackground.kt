@@ -17,57 +17,59 @@ import ru.rfdocs.wallet.ui.theme.WalletTheme
 @Composable
 fun WalletBackground(
     modifier: Modifier = Modifier,
+    glow: Boolean = true,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val isDark = WalletTheme.extra.isDark
+    val dark = WalletTheme.extra.isDark
+
+    val lavender = if (dark) {
+        Palette.Lavender.copy(alpha = 0.28f)
+    } else {
+        Palette.LavenderDeep.copy(alpha = 0.26f)
+    }
+    val indigo = if (dark) {
+        Palette.IndigoDeep.copy(alpha = 0.42f)
+    } else {
+        Palette.Sapphire.copy(alpha = 0.14f)
+    }
+    val bottom = if (dark) {
+        Palette.Lavender.copy(alpha = 0.12f)
+    } else {
+        Palette.LavenderDeep.copy(alpha = 0.10f)
+    }
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(DocumentGradients.screenBrush(isDark))
+            .background(DocumentGradients.screenBrush(dark))
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val topRight = Offset(size.width * 0.88f, size.height * 0.02f)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        Palette.Lavender.copy(alpha = if (isDark) 0.26f else 0.20f),
-                        Color.Transparent
-                    ),
-                    center = topRight,
-                    radius = size.minDimension * 0.90f
-                ),
-                radius = size.minDimension * 0.90f,
-                center = topRight
-            )
+        if (glow) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width
+                val h = size.height
 
-            val leftMiddle = Offset(size.width * 0.02f, size.height * 0.34f)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        Palette.Indigo.copy(alpha = if (isDark) 0.34f else 0.16f),
-                        Color.Transparent
-                    ),
-                    center = leftMiddle,
-                    radius = size.minDimension * 0.95f
-                ),
-                radius = size.minDimension * 0.95f,
-                center = leftMiddle
-            )
-
-            val bottomRight = Offset(size.width * 0.92f, size.height * 0.92f)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        Palette.Mint.copy(alpha = if (isDark) 0.08f else 0.12f),
-                        Color.Transparent
-                    ),
-                    center = bottomRight,
-                    radius = size.minDimension * 0.70f
-                ),
-                radius = size.minDimension * 0.70f,
-                center = bottomRight
-            )
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(lavender, Color.Transparent),
+                        center = Offset(w * 0.16f, h * 0.02f),
+                        radius = w * 1.10f
+                    )
+                )
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(indigo, Color.Transparent),
+                        center = Offset(w * 0.94f, h * 0.16f),
+                        radius = w * 1.00f
+                    )
+                )
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(bottom, Color.Transparent),
+                        center = Offset(w * 0.50f, h * 1.05f),
+                        radius = w * 0.95f
+                    )
+                )
+            }
         }
         content()
     }
