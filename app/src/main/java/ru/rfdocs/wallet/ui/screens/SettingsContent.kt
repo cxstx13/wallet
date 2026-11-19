@@ -6,7 +6,6 @@ import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,7 +20,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,48 +38,15 @@ import ru.rfdocs.wallet.security.BiometricHelper
 import ru.rfdocs.wallet.security.PinVault
 import ru.rfdocs.wallet.security.SecurePrefs
 import ru.rfdocs.wallet.ui.PinSetupScreen
+import ru.rfdocs.wallet.ui.components.CapsuleButton
+import ru.rfdocs.wallet.ui.components.GlassActionRow
+import ru.rfdocs.wallet.ui.components.GlassDivider
+import ru.rfdocs.wallet.ui.components.GlassGroup
 import ru.rfdocs.wallet.ui.components.SectionTitle
+import ru.rfdocs.wallet.ui.components.ToggleRow
 import ru.rfdocs.wallet.ui.components.WalletBackground
 
 private val MimeAll = arrayOf("*/*")
-
-@Composable
-private fun Toggle(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    enabled: Boolean,
-    onChange: (Boolean) -> Unit
-) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
-    }
-}
-
-@Composable
-private fun Action(title: String, onClick: () -> Unit) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.onBackground,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(vertical = 14.dp)
-    )
-}
 
 @Composable
 fun SettingsBody(
@@ -158,8 +123,10 @@ fun SettingsBody(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .statusBarsPadding()
-                .padding(16.dp)
+                .padding(horizontal = 20.dp)
         ) {
+            Spacer(Modifier.height(8.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -171,77 +138,103 @@ fun SettingsBody(
                         tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
-                Text(
-                    text = "Настройки",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onBackground
+                Column {
+                    Text(
+                        text = "Настройки",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = "Безопасность и данные",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+            SectionTitle(text = "Безопасность")
+            Spacer(Modifier.height(10.dp))
+
+            GlassGroup {
+                ToggleRow(
+                    title = "Вход по отпечатку",
+                    subtitle = if (bioOk) "Быстрый вход" else "Не настроен",
+                    checked = bio,
+                    enabled = bioOk,
+                    onChange = { value ->
+                        bio = value
+                        SecurePrefs.setBiometricEnabled(context, value)
+                    }
+                )
+                GlassDivider(Modifier.padding(horizontal = 16.dp))
+                ToggleRow(
+                    title = "Запрет скриншотов",
+                    subtitle = if (blockShots) "Заблокировано" else "Разрешено",
+                    checked = blockShots,
+                    enabled = true,
+                    onChange = { value -> applyShotPolicy(value) }
+                )
+                GlassDivider(Modifier.padding(horizontal = 16.dp))
+                GlassActionRow(
+                    title = "Сменить PIN-код",
+                    onClick = { changePin = true }
                 )
             }
 
-            Spacer(Modifier.height(16.dp))
-            SectionTitle(text = "Безопасность")
-            Spacer(Modifier.height(8.dp))
-
-            Toggle(
-                title = "Вход по отпечатку",
-                subtitle = if (bioOk) "Быстрый вход" else "Не настроен",
-                checked = bio,
-                enabled = bioOk,
-                onChange = { value ->
-                    bio = value
-                    SecurePrefs.setBiometricEnabled(context, value)
-                }
-            )
-
-            Toggle(
-                title = "Запрет скриншотов",
-                subtitle = if (blockShots) "Заблокировано" else "Разрешено",
-                checked = blockShots,
-                enabled = true,
-                onChange = { value -> applyShotPolicy(value) }
-            )
-
-            Action(title = "Сменить PIN-код", onClick = { changePin = true })
-
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(22.dp))
             SectionTitle(text = "Оформление")
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
 
-            Toggle(
-                title = "Тёмная тема",
-                subtitle = "AMOLED",
-                checked = darkTheme,
-                enabled = true,
-                onChange = onToggleDarkTheme
-            )
+            GlassGroup {
+                ToggleRow(
+                    title = "Тёмная тема",
+                    subtitle = "AMOLED",
+                    checked = darkTheme,
+                    enabled = true,
+                    onChange = onToggleDarkTheme
+                )
+            }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(22.dp))
             SectionTitle(text = "Резервная копия")
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
 
-            Action(
-                title = "Экспорт бэкапа",
-                onClick = {
-                    if (DocRepository.cardCount() == 0) {
-                        Toast.makeText(context, "Нет документов", Toast.LENGTH_SHORT).show()
-                    } else {
-                        exportLauncher.launch(BackupManager.suggestedFileName())
+            GlassGroup {
+                GlassActionRow(
+                    title = "Экспорт бэкапа",
+                    subtitle = "Зашифрованный файл .rfwallet",
+                    onClick = {
+                        if (DocRepository.cardCount() == 0) {
+                            Toast.makeText(context, "Нет документов", Toast.LENGTH_SHORT).show()
+                        } else {
+                            exportLauncher.launch(BackupManager.suggestedFileName())
+                        }
                     }
-                }
-            )
+                )
+                GlassDivider(Modifier.padding(horizontal = 16.dp))
+                GlassActionRow(
+                    title = "Импорт из бэкапа",
+                    subtitle = "Восстановить документы и фото",
+                    onClick = { importLauncher.launch(MimeAll) }
+                )
+            }
 
-            Action(
-                title = "Импорт из бэкапа",
-                onClick = { importLauncher.launch(MimeAll) }
-            )
-
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(22.dp))
             SectionTitle(text = "Прочее")
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
 
-            Action(title = "О приложении", onClick = onAbout)
-            Action(title = "Удалить все документы", onClick = { wipe = true })
+            GlassGroup {
+                GlassActionRow(title = "О приложении", onClick = onAbout)
+                GlassDivider(Modifier.padding(horizontal = 16.dp))
+                GlassActionRow(
+                    title = "Удалить все документы",
+                    subtitle = "Действие необратимо",
+                    danger = true,
+                    onClick = { wipe = true }
+                )
+            }
 
             Spacer(Modifier.height(32.dp))
         }
