@@ -1,68 +1,151 @@
 package ru.rfdocs.wallet.ui.theme
 
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
-object Palette {
+data class CardGradient(
+    val colors: List<Color>,
+    val accent: Color,
+    val deep: Color,
+    val badge: List<Color> = colors
+)
 
-    // Акцент референса — мягкий лавандово-фиолетовый
-    val Lavender = Color(0xFFA89BFF)
-    val LavenderSoft = Color(0xFFB5A8FF)
-    val LavenderDeep = Color(0xFF6C4BE0)
+object DocumentGradients {
 
-    val Gold = Lavender
-    val GoldSoft = LavenderSoft
+    private val Ink = Color(0xFF0C1016)
 
-    val Mint = Color(0xFF6FE3C0)
-    val CardOnDark = Color(0xFFF5F3FF)
-    val CardOnDarkMuted = Color(0xFFB3ADC9)
+    val PassportRf = CardGradient(
+        colors = listOf(Color(0xFF4B1230), Color(0xFF26091A), Ink),
+        accent = Color(0xFFE7A9C0),
+        deep = Color(0xFF26091A),
+        badge = listOf(Color(0xFFE45CC7), Color(0xFF7B2E9E))
+    )
 
-    val RubyDark = Color(0xFF3A0F22)
-    val Ruby = Color(0xFF8E1B4A)
+    val PassportForeign = CardGradient(
+        colors = listOf(Color(0xFF1C2B52), Color(0xFF111B33), Ink),
+        accent = Color(0xFF9BB0FF),
+        deep = Color(0xFF111B33),
+        badge = listOf(Color(0xFF5B7CFF), Color(0xFF2D3EA8))
+    )
 
-    val SapphireDark = Color(0xFF0B1838)
-    val Sapphire = Color(0xFF12325C)
-    val SapphireLight = Color(0xFF3B6FD1)
+    val Snils = CardGradient(
+        colors = listOf(Color(0xFF3A2A10), Color(0xFF1F160A), Ink),
+        accent = Palette.Amber,
+        deep = Color(0xFF1F160A),
+        badge = listOf(Color(0xFFF0B448), Color(0xFFC07A12))
+    )
 
-    val EmeraldDark = Color(0xFF073B2C)
-    val Emerald = Color(0xFF0F5F49)
+    val Inn = CardGradient(
+        colors = listOf(Color(0xFF262C36), Color(0xFF151A21), Ink),
+        accent = Color(0xFFB9C6E8),
+        deep = Color(0xFF151A21),
+        badge = listOf(Color(0xFF9C8BFF), Color(0xFF5A4BA8))
+    )
 
-    val GraphiteDark = Color(0xFF1B1E23)
-    val Graphite = Color(0xFF2B2F36)
-    val GraphiteLight = Color(0xFF4B525C)
+    val Vehicle = CardGradient(
+        colors = listOf(Color(0xFF1B2129), Color(0xFF0F1318), Ink),
+        accent = Color(0xFFB9C6E8),
+        deep = Color(0xFF0F1318),
+        badge = listOf(Color(0xFF4C8DFF), Color(0xFF1D4ED8))
+    )
 
-    val Anthracite = Color(0xFF15181C)
-    val AnthraciteLight = Color(0xFF2A2F36)
-    val Amber = Color(0xFFE9A93C)
+    val Insurance = CardGradient(
+        colors = listOf(Color(0xFF2A2C6B), Color(0xFF15173C), Ink),
+        accent = Color(0xFFA9B4FF),
+        deep = Color(0xFF15173C),
+        badge = listOf(Color(0xFF8C8CFF), Color(0xFF4B3FB0))
+    )
 
-    val IndigoDark = Color(0xFF191A46)
-    val Indigo = Color(0xFF2E2A6B)
-    val Violet = Color(0xFF6C4BE0)
+    val Medicine = CardGradient(
+        colors = listOf(Color(0xFF0F4E59), Color(0xFF0A2E36), Ink),
+        accent = Palette.Azure,
+        deep = Color(0xFF0A2E36),
+        badge = listOf(Color(0xFF3FD98A), Color(0xFF0E7A4F))
+    )
 
-    val TurquoiseDark = Color(0xFF064750)
-    val Turquoise = Color(0xFF0E6E7A)
-    val Azure = Color(0xFF1E93B8)
+    val Family = CardGradient(
+        colors = listOf(Color(0xFF4A2418), Color(0xFF27110B), Ink),
+        accent = Color(0xFFF3B79A),
+        deep = Color(0xFF27110B),
+        badge = listOf(Color(0xFFF08A5D), Color(0xFFA8452B))
+    )
 
-    val TerracottaDark = Color(0xFF5E2A18)
-    val Terracotta = Color(0xFF9B4A2E)
-    val TerracottaLight = Color(0xFFC97B52)
+    val Bank = CardGradient(
+        colors = listOf(Color(0xFF232A34), Color(0xFF11151B), Ink),
+        accent = Palette.LavenderSoft,
+        deep = Color(0xFF11151B),
+        badge = listOf(Color(0xFFA89BFF), Color(0xFF5B48C8))
+    )
 
-    val OledBlack = Color(0xFF000000)
-    val NightBase = Color(0xFF07060B)
-    val NightSurface = Color(0xFF12101A)
-    val NightSurfaceHigh = Color(0xFF1B1826)
-    val NightOutline = Color(0xFF2C2740)
+    val Custom = CardGradient(
+        colors = listOf(Color(0xFF23264F), Color(0xFF12142C), Ink),
+        accent = Palette.Lavender,
+        deep = Color(0xFF12142C),
+        badge = listOf(Color(0xFF8B7BFF), Color(0xFF4B3EA8))
+    )
 
-    val LightBase = Color(0xFFF5F4F8)
-    val LightSurface = Color(0xFFFFFFFF)
-    val LightSurfaceHigh = Color(0xFFEEEBF5)
-    val LightOutline = Color(0xFFDCD7E8)
+    fun forType(typeKey: String): CardGradient {
+        val key = typeKey.lowercase()
+        return when {
+            key.contains("foreign") || key.contains("zagran") -> PassportForeign
+            key.contains("passport") || key.contains("pasport") -> PassportRf
+            key.contains("snils") -> Snils
+            key.contains("inn") -> Inn
+            key.contains("driver") || key.contains("vu") -> Vehicle
+            key.contains("sts") || key.contains("pts") -> Vehicle
+            key.contains("osago") || key.contains("kasko") -> Insurance
+            key.contains("oms") || key.contains("dms") -> Medicine
+            key.contains("birth") || key.contains("family") -> Family
+            key.contains("bank") -> Bank
+            else -> Custom
+        }
+    }
 
-    val TextPrimaryDark = Color(0xFFF3F1FB)
-    val TextSecondaryDark = Color(0xFF9E97B8)
-    val TextPrimaryLight = Color(0xFF17141F)
-    val TextSecondaryLight = Color(0xFF6A6379)
+    fun colorsFor(typeKey: String): List<Color> = forType(typeKey).colors
 
-    val Danger = Color(0xFFE5534B)
-    val Warning = Color(0xFFF0A93C)
-    val Success = Color(0xFF3FBF7F)
+    fun accentFor(typeKey: String): Color = forType(typeKey).accent
+
+    fun badgeFor(typeKey: String): List<Color> = forType(typeKey).badge
+
+    fun brush(typeKey: String): Brush = Brush.linearGradient(colors = forType(typeKey).colors)
+
+    fun brush(gradient: CardGradient): Brush = Brush.linearGradient(colors = gradient.colors)
+
+    fun badgeBrush(typeKey: String): Brush = Brush.linearGradient(colors = forType(typeKey).badge)
+
+    fun screenBrush(dark: Boolean): Brush = if (dark) {
+        Brush.verticalGradient(
+            colors = listOf(Color(0xFF0B0813), Palette.NightBase)
+        )
+    } else {
+        Brush.verticalGradient(
+            colors = listOf(Color(0xFFF7F9FD), Palette.LightBase)
+        )
+    }
+
+    fun glowBrush(dark: Boolean): Brush = if (dark) {
+        Brush.radialGradient(
+            colors = listOf(Palette.Lavender.copy(alpha = 0.24f), Color.Transparent)
+        )
+    } else {
+        Brush.radialGradient(
+            colors = listOf(Palette.LavenderDeep.copy(alpha = 0.18f), Color.Transparent)
+        )
+    }
+
+    fun shineBrush(): Brush = Brush.linearGradient(
+        colors = listOf(
+            Color.White.copy(alpha = 0.16f),
+            Color.White.copy(alpha = 0.03f),
+            Color.Transparent
+        )
+    )
+
+    fun borderBrush(accent: Color): Brush = Brush.linearGradient(
+        colors = listOf(
+            accent.copy(alpha = 0.45f),
+            Color.White.copy(alpha = 0.14f),
+            accent.copy(alpha = 0.20f)
+        )
+    )
 }
