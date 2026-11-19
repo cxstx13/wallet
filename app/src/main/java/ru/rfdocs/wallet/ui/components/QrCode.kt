@@ -19,15 +19,13 @@ import androidx.compose.ui.unit.dp
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
-import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 
 fun generateQrBitmap(content: String, sizePx: Int = 720): Bitmap? {
     if (content.isBlank()) return null
     return runCatching {
         val hints = mapOf(
             EncodeHintType.MARGIN to 1,
-            EncodeHintType.CHARACTER_SET to "UTF-8",
-            EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.M
+            EncodeHintType.CHARACTER_SET to "UTF-8"
         )
         val matrix = MultiFormatWriter().encode(
             content,
@@ -38,9 +36,9 @@ fun generateQrBitmap(content: String, sizePx: Int = 720): Bitmap? {
         )
         val pixels = IntArray(sizePx * sizePx)
         for (y in 0 until sizePx) {
-            val rowOffset = y * sizePx
+            val row = y * sizePx
             for (x in 0 until sizePx) {
-                pixels[rowOffset + x] = if (matrix.get(x, y)) {
+                pixels[row + x] = if (matrix.get(x, y)) {
                     android.graphics.Color.BLACK
                 } else {
                     android.graphics.Color.WHITE
