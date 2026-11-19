@@ -21,7 +21,7 @@ import androidx.core.view.WindowCompat
 private val DarkColors = darkColorScheme(
     primary = Palette.Gold,
     onPrimary = Palette.NightBase,
-    primaryContainer = Palette.Ruby,
+    primaryContainer = Palette.Indigo,
     onPrimaryContainer = Palette.CardOnDark,
     secondary = Palette.SapphireLight,
     onSecondary = Color.White,
@@ -40,7 +40,7 @@ private val DarkColors = darkColorScheme(
 )
 
 private val LightColors = lightColorScheme(
-    primary = Palette.Ruby,
+    primary = Palette.Violet,
     onPrimary = Color.White,
     primaryContainer = Palette.GoldSoft,
     onPrimaryContainer = Palette.TextPrimaryLight,
@@ -61,11 +61,11 @@ private val LightColors = lightColorScheme(
 )
 
 val WalletShapes = Shapes(
-    extraSmall = RoundedCornerShape(10.dp),
-    small = RoundedCornerShape(14.dp),
-    medium = RoundedCornerShape(18.dp),
-    large = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(30.dp)
+    extraSmall = RoundedCornerShape(12.dp),
+    small = RoundedCornerShape(16.dp),
+    medium = RoundedCornerShape(20.dp),
+    large = RoundedCornerShape(26.dp),
+    extraLarge = RoundedCornerShape(32.dp)
 )
 
 @Immutable
@@ -92,23 +92,23 @@ data class WalletExtraColors(
 )
 
 private val DarkExtras = WalletExtraColors(
-    glassFill = Color(0xFF161B24).copy(alpha = 0.72f),
-    glassBorder = Color.White.copy(alpha = 0.10f),
-    glassHighlight = Color.White.copy(alpha = 0.06f),
-    shadow = Color.Black.copy(alpha = 0.45f),
+    glassFill = Color(0xFF14121E).copy(alpha = 0.66f),
+    glassBorder = Color.White.copy(alpha = 0.12f),
+    glassHighlight = Color.White.copy(alpha = 0.07f),
+    shadow = Color.Black.copy(alpha = 0.55f),
     onCardPrimary = Palette.CardOnDark,
     onCardSecondary = Palette.CardOnDarkMuted,
     monoAccent = Palette.Gold,
-    chipFill = Color(0xFF1B212B),
+    chipFill = Color(0xFF1A1726),
     chipSelectedFill = Palette.Gold,
     chipSelectedText = Palette.NightBase,
-    fieldFill = Color(0xFF171C26),
-    fieldStroke = Color.White.copy(alpha = 0.08f),
+    fieldFill = Color(0xFF16131F),
+    fieldStroke = Color.White.copy(alpha = 0.09f),
     fieldLabel = Palette.TextSecondaryDark,
-    pillFill = Color(0xFF1B212B),
-    pillStroke = Color.White.copy(alpha = 0.10f),
+    pillFill = Color(0xFF1A1726),
+    pillStroke = Color.White.copy(alpha = 0.12f),
     pillText = Palette.TextPrimaryDark,
-    screenTop = Color(0xFF11151D),
+    screenTop = Color(0xFF0B0912),
     screenBottom = Palette.NightBase,
     isDark = true
 )
@@ -120,9 +120,9 @@ private val LightExtras = WalletExtraColors(
     shadow = Color(0xFF11151C).copy(alpha = 0.12f),
     onCardPrimary = Palette.CardOnDark,
     onCardSecondary = Palette.CardOnDarkMuted,
-    monoAccent = Palette.Ruby,
+    monoAccent = Palette.Violet,
     chipFill = Color(0xFFE9EDF3),
-    chipSelectedFill = Palette.Ruby,
+    chipSelectedFill = Palette.Violet,
     chipSelectedText = Color.White,
     fieldFill = Color(0xFFEFF2F7),
     fieldStroke = Color(0xFF11151C).copy(alpha = 0.06f),
