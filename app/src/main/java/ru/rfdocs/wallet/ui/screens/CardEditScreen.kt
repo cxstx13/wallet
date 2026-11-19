@@ -64,6 +64,9 @@ import ru.rfdocs.wallet.ui.input.Masks
 import ru.rfdocs.wallet.ui.theme.Palette
 import java.util.UUID
 
+private fun maskOrNull(mask: String?): String? =
+    if (mask.isNullOrBlank()) null else mask
+
 @Composable
 fun CardEditScreen(
     viewModel: WalletViewModel,
@@ -91,7 +94,7 @@ fun CardEditScreen(
         mutableStateListOf<DocField>().apply {
             val specs = template?.fields.orEmpty()
             if (specs.isEmpty()) {
-                existing?.fields?.forEach { add(it) }
+                existing?.fields?.forEach { add(it.copy(mask = maskOrNull(it.mask))) }
                 if (isEmpty()) {
                     add(DocField(key = "field_1", label = "Поле 1", value = ""))
                 }
@@ -103,7 +106,7 @@ fun CardEditScreen(
                             key = spec.key,
                             label = spec.label,
                             value = value,
-                            mask = spec.mask,
+                            mask = maskOrNull(spec.mask),
                             secret = spec.secret,
                             phone = spec.phone
                         )
@@ -148,7 +151,7 @@ fun CardEditScreen(
         }
         if (invalidDate != null) {
             scope.launch {
-                snackbarHostState.showSnackbar("Проверьте дату в поле «${invalidDate.label}»")
+                snackbarHostState.showSnackbar("Проверьте дату: «${invalidDate.label}»")
             }
             return
         }
@@ -241,7 +244,8 @@ fun CardEditScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад"
+                            contentDescription = "Назад",
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
                     Text(
