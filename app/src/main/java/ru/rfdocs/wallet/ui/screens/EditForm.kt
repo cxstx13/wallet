@@ -99,7 +99,8 @@ fun EditForm(
 
         SectionTitle(text = "Поля документа")
 
-        fields.forEachIndexed { index, field ->
+        for (index in fields.indices) {
+            val field = fields[index]
             if (isCustom) {
                 CustomFieldRow(
                     field = field,
