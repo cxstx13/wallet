@@ -30,27 +30,6 @@ import ru.rfdocs.wallet.ui.components.GlassPanel
 import ru.rfdocs.wallet.ui.components.WalletBackground
 import ru.rfdocs.wallet.ui.components.WalletSearchField
 
-private fun categoryOf(card: DocCard): DocCategory {
-    val key = card.typeKey.lowercase()
-    return when {
-        key.contains("osago") || key.contains("kasko") -> DocCategory.MEDICINE
-        key.contains("oms") || key.contains("dms") -> DocCategory.MEDICINE
-        key.contains("driver") || key.contains("vu") -> DocCategory.AUTO
-        key.contains("sts") || key.contains("pts") -> DocCategory.AUTO
-        key.contains("birth") -> DocCategory.FAMILY
-        key.contains("passport") || key.contains("zagran") -> DocCategory.IDENTITY
-        key.contains("snils") || key.contains("inn") -> DocCategory.IDENTITY
-        else -> DocCategory.OTHER
-    }
-}
-
-private fun matches(card: DocCard, query: String): Boolean {
-    val term = query.trim().lowercase()
-    if (term.isEmpty()) return true
-    if (card.title.lowercase().contains(term)) return true
-    return card.fields.any { it.value.lowercase().contains(term) }
-}
-
 @Composable
 fun HomeScreen(
     onOpenCard: (String) -> Unit,
@@ -132,4 +111,25 @@ fun HomeScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp)
         )
     }
+}
+
+private fun categoryOf(card: DocCard): DocCategory {
+    val key = card.typeKey.lowercase()
+    return when {
+        key.contains("osago") || key.contains("kasko") -> DocCategory.MEDICINE
+        key.contains("oms") || key.contains("dms") -> DocCategory.MEDICINE
+        key.contains("driver") || key.contains("vu") -> DocCategory.AUTO
+        key.contains("sts") || key.contains("pts") -> DocCategory.AUTO
+        key.contains("birth") -> DocCategory.FAMILY
+        key.contains("passport") || key.contains("zagran") -> DocCategory.IDENTITY
+        key.contains("snils") || key.contains("inn") -> DocCategory.IDENTITY
+        else -> DocCategory.OTHER
+    }
+}
+
+private fun matches(card: DocCard, query: String): Boolean {
+    val term = query.trim().lowercase()
+    if (term.isEmpty()) return true
+    if (card.title.lowercase().contains(term)) return true
+    return card.fields.any { it.value.lowercase().contains(term) }
 }
