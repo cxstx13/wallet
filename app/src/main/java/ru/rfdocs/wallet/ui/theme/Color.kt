@@ -3,17 +3,23 @@ package ru.rfdocs.wallet.ui.theme
 import androidx.compose.ui.graphics.Color
 
 object Palette {
-    val Gold = Color(0xFFB9A6FF)
-    val GoldSoft = Color(0xFFD9CCFF)
+
+    // Акцент референса — мягкий лавандово-фиолетовый
+    val Lavender = Color(0xFFA89BFF)
+    val LavenderSoft = Color(0xFFB5A8FF)
+    val LavenderDeep = Color(0xFF6C4BE0)
+
+    val Gold = Lavender
+    val GoldSoft = LavenderSoft
 
     val Mint = Color(0xFF6FE3C0)
-    val CardOnDark = Color(0xFFF7F9FC)
-    val CardOnDarkMuted = Color(0xFFB6C0D0)
+    val CardOnDark = Color(0xFFF5F3FF)
+    val CardOnDarkMuted = Color(0xFFB3ADC9)
 
-    val RubyDark = Color(0xFF4A0E1B)
-    val Ruby = Color(0xFF8E1B2E)
+    val RubyDark = Color(0xFF3A0F22)
+    val Ruby = Color(0xFF8E1B4A)
 
-    val SapphireDark = Color(0xFF0B1E38)
+    val SapphireDark = Color(0xFF0B1838)
     val Sapphire = Color(0xFF12325C)
     val SapphireLight = Color(0xFF3B6FD1)
 
@@ -28,8 +34,8 @@ object Palette {
     val AnthraciteLight = Color(0xFF2A2F36)
     val Amber = Color(0xFFE9A93C)
 
-    val IndigoDark = Color(0xFF1A1440)
-    val Indigo = Color(0xFF3B2E7E)
+    val IndigoDark = Color(0xFF191A46)
+    val Indigo = Color(0xFF2E2A6B)
     val Violet = Color(0xFF6C4BE0)
 
     val TurquoiseDark = Color(0xFF064750)
@@ -51,12 +57,12 @@ object Palette {
     val LightSurfaceHigh = Color(0xFFEEEBF5)
     val LightOutline = Color(0xFFDCD7E8)
 
-    val TextPrimaryDark = Color(0xFFF2F0F8)
-    val TextSecondaryDark = Color(0xFFA9A3BE)
+    val TextPrimaryDark = Color(0xFFF3F1FB)
+    val TextSecondaryDark = Color(0xFF9E97B8)
     val TextPrimaryLight = Color(0xFF17141F)
     val TextSecondaryLight = Color(0xFF6A6379)
 
-    val Danger = Color(0xFFE05252)
-    val Warning = Color(0xFFFFC46B)
+    val Danger = Color(0xFFE5534B)
+    val Warning = Color(0xFFF0A93C)
     val Success = Color(0xFF3FBF7F)
 }
