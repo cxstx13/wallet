@@ -1,26 +1,30 @@
 package ru.rfdocs.wallet
 
+import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
 import ru.rfdocs.wallet.security.LockManager
-import ru.rfdocs.wallet.security.SecurePrefs
 import ru.rfdocs.wallet.ui.AppRoot
 import ru.rfdocs.wallet.ui.theme.WalletTheme
 
 class MainActivity : FragmentActivity() {
 
-    private val lockHandler = Handler(Looper.getMainLooper())
-    private val lockRunnable = Runnable { LockManager.lock() }
+    private var backgroundAt = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
         super.onCreate(savedInstanceState)
-        applyScreenshotPolicy()
         enableEdgeToEdge()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+            window.isStatusBarContrastEnforced = false
+        }
         setContent {
             WalletTheme {
                 AppRoot()
@@ -28,41 +32,23 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    override fun onStart() {
-        super.onStart()
-        lockHandler.removeCallbacks(lockRunnable)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        lockHandler.removeCallbacks(lockRunnable)
-        applyScreenshotPolicy()
-    }
-
     override fun onStop() {
-        lockHandler.removeCallbacks(lockRunnable)
-        lockHandler.postDelayed(lockRunnable, LOCK_DELAY_MS)
+        backgroundAt = System.currentTimeMillis()
         super.onStop()
     }
 
-    override fun onDestroy() {
-        lockHandler.removeCallbacks(lockRunnable)
-        super.onDestroy()
-    }
-
-    private fun applyScreenshotPolicy() {
-        val blocked = SecurePrefs.isScreenshotBlocked(this)
-        if (blocked) {
-            window.setFlags(
-                WindowManager.LayoutParams.FLAG_SECURE,
-                WindowManager.LayoutParams.FLAG_SECURE
-            )
-        } else {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+    override fun onStart() {
+        super.onStart()
+        if (backgroundAt != 0L) {
+            val away = System.currentTimeMillis() - backgroundAt
+            backgroundAt = 0L
+            if (away > LOCK_AFTER_MS) {
+                LockManager.lock()
+            }
         }
     }
 
-    private companion object {
-        private const val LOCK_DELAY_MS = 15_000L
+    companion object {
+        private const val LOCK_AFTER_MS = 20_000L
     }
 }
