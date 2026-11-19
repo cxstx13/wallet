@@ -1,19 +1,23 @@
 package ru.rfdocs.wallet.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -21,99 +25,113 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
+import ru.rfdocs.wallet.ui.components.PinDots
+import ru.rfdocs.wallet.ui.components.PinPad
+import ru.rfdocs.wallet.ui.components.WalletBackground
 import ru.rfdocs.wallet.ui.theme.Palette
+
+private const val PIN_LENGTH = 4
 
 @Composable
 fun PinSetupScreen(
     title: String,
     subtitle: String,
     onComplete: (String) -> Unit,
-    onCancel: (() -> Unit)? = null
+    onCancel: () -> Unit
 ) {
     val haptics = LocalHapticFeedback.current
 
-    var firstPin by remember { mutableStateOf<String?>(null) }
+    var stage by remember { mutableStateOf(0) }
+    var first by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
-    var errorCount by remember { mutableIntStateOf(0) }
+    var mismatch by remember { mutableStateOf(false) }
 
-    val currentTitle = if (firstPin == null) title else "Повторите PIN-код"
-    val currentSubtitle = if (firstPin == null) subtitle else "Введите тот же код ещё раз"
-
-    fun handleDigit(digit: String) {
-        if (pin.length >= PIN_LENGTH) return
-        val next = pin + digit
-        pin = next
-        if (next.length < PIN_LENGTH) return
-
-        val stored = firstPin
-        when {
-            stored == null -> {
+    LaunchedEffect(pin, stage) {
+        if (pin.length < PIN_LENGTH) return@LaunchedEffect
+        if (stage == 0) {
+            first = pin
+            pin = ""
+            stage = 1
+            mismatch = false
+        } else {
+            if (pin == first) {
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onComplete(pin)
+            } else {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                firstPin = next
+                mismatch = true
+                delay(700)
                 pin = ""
-            }
-
-            stored == next -> {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                onComplete(next)
-            }
-
-            else -> {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                errorCount += 1
-                firstPin = null
-                pin = ""
+                first = ""
+                stage = 0
             }
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
+    WalletBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = 28.dp)
         ) {
-            Spacer(Modifier.weight(1f))
-
-            PinHeader(title = currentTitle, subtitle = currentSubtitle)
-
-            Spacer(Modifier.height(30.dp))
-            PinDots(length = PIN_LENGTH, filled = pin.length, errorCount = errorCount)
-            Spacer(Modifier.height(12.dp))
-            Text(
-                text = if (errorCount > 0) "PIN-коды не совпали, попробуйте снова" else " ",
-                style = MaterialTheme.typography.labelLarge,
-                color = Palette.Danger,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(Modifier.weight(1f))
-
-            PinKeypad(
-                onDigit = { digit -> handleDigit(digit) },
-                onBackspace = { pin = pin.dropLast(1) },
-                onBiometric = null
-            )
-
-            Spacer(Modifier.height(16.dp))
-            if (onCancel != null) {
-                TextButton(onClick = onCancel) {
-                    Text(
-                        text = "Отмена",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxSize().weight(0f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onCancel) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Отмена",
+                        tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
             }
-            Spacer(Modifier.height(8.dp))
+
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = if (stage == 0) subtitle else "Повторите PIN-код",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(Modifier.height(26.dp))
+                PinDots(
+                    count = pin.length,
+                    length = PIN_LENGTH,
+                    error = mismatch
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = if (mismatch) "PIN-коды не совпадают" else " ",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Palette.Danger
+                )
+
+                Spacer(Modifier.height(18.dp))
+                PinPad(
+                    onDigit = { digit -> if (pin.length < PIN_LENGTH) pin = pin + digit },
+                    onBackspace = { pin = pin.dropLast(1) }
+                )
+
+                Spacer(Modifier.height(20.dp))
+            }
         }
     }
 }
