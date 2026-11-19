@@ -29,15 +29,13 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
-private val DatePattern = DateTimeFormatter.ofPattern("dd.MM.yyyy")
-
 fun expiryCaption(card: DocCard): String {
-    val date: LocalDate = expiryDateOf(card) ?: return "Без срока действия"
-    val formatted = DatePattern.format(date)
+    val date = expiryDateOf(card) ?: return "Без срока"
+    val text = DateTimeFormatter.ofPattern("dd.MM.yyyy").format(date)
     val days = ChronoUnit.DAYS.between(LocalDate.now(), date)
-    if (days < 0L) return "Истёк $formatted"
-    if (days <= 30L) return "Истекает $formatted"
-    return "Действителен до $formatted"
+    if (days < 0L) return "Истёк " + text
+    if (days <= 30L) return "Истекает " + text
+    return "Действителен до " + text
 }
 
 @Composable
@@ -45,28 +43,31 @@ fun DocumentRow(
     card: DocCard,
     onClick: () -> Unit
 ) {
-    val gradient = DocumentGradients.forType(card.typeKey)
+    val g = DocumentGradients.forType(card.typeKey)
+    val typo = MaterialTheme.typography
+    val colors = MaterialTheme.colorScheme
+    val fill = WalletTheme.extra.glassFill
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(WalletTheme.extra.glassFill)
+            .background(fill)
             .clickable { onClick() }
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(48.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Brush.linearGradient(gradient.colors)),
+                .background(Brush.linearGradient(g.colors)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = documentIconOf(card.typeKey),
                 contentDescription = null,
-                tint = gradient.accent,
+                tint = g.accent,
                 modifier = Modifier.size(24.dp)
             )
         }
@@ -74,22 +75,14 @@ fun DocumentRow(
         Spacer(Modifier.width(14.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = card.title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = expiryCaption(card),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text(text = card.title, style = typo.titleMedium, color = colors.onBackground)
+            Text(text = expiryCaption(card), style = typo.bodySmall, color = colors.onSurfaceVariant)
         }
 
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            tint = colors.onSurfaceVariant
         )
     }
 }
