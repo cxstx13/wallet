@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -64,8 +65,8 @@ fun decodeSampled(bytes: ByteArray, maxDimension: Int = 1600): Bitmap? {
     }.getOrNull()
 }
 
-fun decodeSampled(context: Context, photoId: String, maxDimension: Int = 1600): Bitmap? {
-    val bytes = PhotoStore.load(context, photoId) ?: return null
+fun decodePhoto(context: Context, photoId: String, maxDimension: Int = 1200): Bitmap? {
+    val bytes = runCatching { PhotoStore.load(context, photoId) }.getOrNull() ?: return null
     return decodeSampled(bytes, maxDimension)
 }
 
@@ -79,6 +80,7 @@ fun PhotoThumbStrip(
     if (photoIds.isEmpty()) return
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
+    val extras = WalletTheme.extra
 
     Row(
         modifier = modifier
@@ -87,15 +89,15 @@ fun PhotoThumbStrip(
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         photoIds.forEach { photoId ->
-            val bitmap = remember(photoId) { decodeSampled(context, photoId, 480) }
+            val bitmap = remember(photoId) { decodePhoto(context, photoId, 480) }
             Box(
                 modifier = Modifier
                     .size(width = 112.dp, height = 80.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(WalletTheme.extra.glassFill)
-                    .border(1.dp, WalletTheme.extra.glassBorder, RoundedCornerShape(14.dp))
+                    .background(extras.glassFill)
+                    .border(1.dp, extras.glassBorder, RoundedCornerShape(14.dp))
                     .clickable {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onOpen(photoId)
                     }
             ) {
@@ -109,11 +111,13 @@ fun PhotoThumbStrip(
                             .height(80.dp)
                     )
                 } else {
-                    Text(
-                        text = "Нет",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.align(Alignment.Center)
+                    Icon(
+                        imageVector = Icons.Filled.Photo,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(22.dp)
                     )
                 }
 
@@ -126,7 +130,6 @@ fun PhotoThumbStrip(
                         .background(Palette.Danger.copy(alpha = 0.92f))
                         .clickable {
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            PhotoStore.delete(context, photoId)
                             onRemove(photoId)
                         },
                     contentAlignment = Alignment.Center
@@ -150,7 +153,7 @@ fun PhotoViewerDialog(
     onDelete: (String) -> Unit
 ) {
     val context = LocalContext.current
-    val bitmap = remember(photoId) { decodeSampled(context, photoId, 2048) }
+    val bitmap = remember(photoId) { decodePhoto(context, photoId, 2048) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -196,12 +199,7 @@ fun PhotoViewerDialog(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(
-                    onClick = {
-                        PhotoStore.delete(context, photoId)
-                        onDelete(photoId)
-                    }
-                ) {
+                TextButton(onClick = { onDelete(photoId) }) {
                     Icon(
                         imageVector = Icons.Filled.Delete,
                         contentDescription = null,
